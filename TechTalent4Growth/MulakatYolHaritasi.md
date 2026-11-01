@@ -9,6 +9,7 @@
 
 ## 📑 İçindekiler
 
+0. [🎙️ 30 Dakikalık Uçtan Uca Kendi Ağzımdan Hikayem (Madde Madde Konuşma Akışı)](#️-30-dakikalık-uçtan-uca-kendi-ağzımdan-hikayem-madde-madde-konuşma-akışı)
 1. [0. Mülakatın Röntgeni, CV Analizin ve Kees'in Gerçek Amacı](#0-mülakatın-röntgeni-cv-analizin-ve-keesin-gerçek-amacı)
 2. [1. Bu Görüşmede Nelere Dikkat Etmelisin? (12 Altın Kural)](#1-bu-görüşmede-nelere-dikkat-etmelisin-12-altın-kural)
 3. [2. Kendini Anlatırken Kullanacağın Her Şey (CV'ndeki Gerçek Rakamlarla)](#2-kendini-anlatırken-kullanacağın-her-şey-cvndeki-gerçek-rakamlarla)
@@ -23,6 +24,82 @@
    - [E. Lojistik, Çalışma Saatleri ve Ücret (Monthly Fee) Soruları](#e-lojistik-çalışma-saatleri-ve-ücret-monthly-fee-soruları)
 6. [5. Toplantı Sonunda Kees'e Soracağın Sorular](#5-toplantı-sonunda-keese-soracağın-sorular)
 7. [6. Görüşme Anında Açık Tutacağın "1 Bakışta Kopya Kağıdı"](#6-görüşme-anında-açık-tutacağın-1-bakışta-kopya-kağıdı)
+
+---
+
+## 🎙️ 30 Dakikalık Uçtan Uca Kendi Ağzımdan Hikayem (Madde Madde Konuşma Akışı)
+
+> **Kullanım:** Bu bölüm, 30–45 dakikalık görüşme boyunca kendi hikayeni **kronolojik ve akıcı bir sohbet** şeklinde anlatabilmen için 1. tekil şahıs (*"Ben"*) diliyle, abartılı detaya girmeden **madde madde** yazılmıştır. Her adımda hem **doğrudan okuyup söyleyebileceğin İngilizce cümleler** hem de *Türkçe özeti* yer alır.
+
+### 1. Giriş ve Kimliğim (1–2. Dakika)
+- **EN:** *"Hi Kees, thanks for taking the time today. I’m Özgür. I have over **10 years of hands-on experience** as a software engineer in the **C# and .NET** ecosystem."*
+  *(TR: Merhaba Kees, zaman ayırdığın için teşekkürler. Ben Özgür. C# ve .NET ekosisteminde 10 yılı aşkın uygulamalı yazılım mühendisliği deneyimim var.)*
+- **EN:** *"Throughout my career, my main focus has been **high-volume e-commerce platforms, complex third-party integrations, and event-driven systems**."*
+  *(TR: Kariyerim boyunca ana odağım yüksek hacimli e-ticaret platformları, karmaşık 3. parti entegrasyonlar ve event-driven sistemler oldu.)*
+- **EN:** *"Even though my CV says Senior Full Stack Engineer and I guide teams technically, **about 80% of my work is heavy backend engineering in .NET**. I consider myself a **hands-on builder**, not a people manager."*
+  *(TR: CV'mde Senior Full Stack yazsa ve ekiplere teknik yön versem de, işimin %80'i .NET ile ağır backend geliştirme. Kendimi insan yöneticisi değil, kod yazan bir 'inşaatçı' olarak görüyorum.)*
+
+### 2. Eğitim ve Avrupa Deneyimim (3–4. Dakika)
+- **EN:** *"I started with an Associate Degree in Computer Programming (2010–2012) and then earned my **Bachelor’s Degree in Computer Engineering at Çukurova University (2012–2016)**."*
+  *(TR: Bilgisayar Programcılığı ön lisans (2010–2012) ile başladım, ardından Çukurova Üniversitesi Bilgisayar Mühendisliği lisans (2012–2016) eğitimimi tamamladım.)*
+- **EN:** *"During university in **2015**, I went to **Krakow, Poland (AGH University of Science and Technology)** with the **Erasmus+** program. Living and studying in Europe in English early on made working with European teams feel very natural to me."*
+  *(TR: 2015'te Erasmus+ ile Polonya Krakow'daki AGH Üniversitesi'nde okudum. Erken yaşta Avrupa'da İngilizce eğitim almak ve yaşamak, Avrupa ekipleriyle çalışmayı benim için çok doğal hale getirdi.)*
+
+### 3. İlk Yıllarım: E-Ticaret, ERP, CMS ve Ödeme Temeli — Novartz (5–8. Dakika)
+- **EN:** *"Right after graduating in **2016**, I worked at **Novartz** for 4.5 years. This is where I learned how different business systems talk to each other."*
+  *(TR: 2016'da mezun olur olmaz 4,5 yıl Novartz'ta çalıştım. Farklı iş sistemlerinin birbiriyle nasıl konuştuğunu tam olarak burada öğrendim.)*
+- **EN:** *"I built an e-commerce platform called **MetalAVM** from scratch—which actually sold hardware and metal products, very close to your client's DIY market."*
+  *(TR: Sıfırdan MetalAVM adında bir e-ticaret platformu kurdum; hatta müşterinizin DIY pazarına çok benzer şekilde hırdavat ve metal ürünleri satıyordu.)*
+- **EN:** *"I also delivered **15+ B2B portals, CMS, and CRM systems**, where I integrated **ERP systems (like LOGO and E-Flow)** and **bank payment gateways (PSPs)** to sync orders, stock, and invoices."*
+  *(TR: Ayrıca 15'ten fazla B2B portal, CMS ve CRM teslim ettim; sipariş, stok ve fatura senkronizasyonu için LOGO ve E-Flow gibi ERP'leri ve banka ödeme sistemlerini (PSP) entegre ettim.)*
+- **EN:** *"And during this time, I also designed the very first version of the **Drivee** real-time vehicle tracking system."*
+  *(TR: Yine bu dönemde, şu an çalıştığım Drivee canlı araç takip sisteminin ilk mimarisini de ben kurmuştum.)*
+
+### 4. Global Omnichannel E-Ticaret — DeFacto (9–12. Dakika)
+- **EN:** *"In **2020**, I joined **DeFacto**, one of Turkey’s largest global fashion and e-commerce retailers selling across many countries."*
+  *(TR: 2020'de, birçok ülkede satış yapan Türkiye'nin en büyük global e-ticaret ve perakende markalarından DeFacto'ya katıldım.)*
+- **EN:** *"Here, I focused 100% on e-commerce backend flows: **online order management, automatic courier assignment, and return/refund logistics**."*
+  *(TR: Burada %100 e-ticaret backend akışlarına odaklandım: online sipariş yönetimi, otomatik kurye atama ve iade lojistiği.)*
+- **EN:** *"I worked heavily on **marketplace integrations, cargo providers, and ERP stock synchronization**—making sure when an order comes from a webshop or marketplace, stock is reserved and synced reliably."*
+  *(TR: Pazaryeri entegrasyonları, kargo firmaları ve ERP stok senkronizasyonu üzerinde yoğun çalıştım; webshop veya pazaryerinden sipariş geldiğinde stokun güvenle ayrılmasını ve senkronize edilmesini sağladım.)*
+
+### 5. Yüksek Trafikli Q-Commerce, .NET ve PostgreSQL — Yemeksepeti (13–16. Dakika)
+- **EN:** *"In **2021**, I joined **Yemeksepeti**, the leading delivery platform in Turkey (part of Delivery Hero), to build their quick-commerce platform **Yemeksepeti Mahalle** from scratch."*
+  *(TR: 2021'de Yemeksepeti'ne katıldım ve hızlı ticaret platformu 'Yemeksepeti Mahalle'yi sıfırdan kuran ekipte yer aldım.)*
+- **EN:** *"I developed the core **Order and Campaign (pricing/promotions) microservices from scratch using C# / .NET and PostgreSQL**—which is the exact same core stack your client uses."*
+  *(TR: Müşterinizin kullandığı ana teknoloji yığınının birebir aynısı olan C# / .NET ve PostgreSQL kullanarak Sipariş ve Kampanya mikroservislerini sıfırdan geliştirdim.)*
+- **EN:** *"The platform handled **tens of thousands of orders per day**. We built the entire order lifecycle as an **event-driven architecture on AWS SNS and SQS**."*
+  *(TR: Platform günde on binlerce sipariş işliyordu. Tüm sipariş döngüsünü AWS SNS ve SQS üzerinde event-driven bir mimariyle kurduk.)*
+- **EN:** *"I used **Datadog** traces to find latency issues, added **Redis** caching, and ran **Locust load tests up to 500,000 requests** to prove the system wouldn't break under peak traffic."*
+  *(TR: Datadog ile gecikme darboğazlarını tespit edip Redis önbellekleme ekledim ve sistemin yoğun trafikte kırılmayacağını kanıtlamak için Locust ile 500 bin isteklik yük testleri yaptım.)*
+
+### 6. Global Entegrasyon Merkezi ve %100 İngilizce Remote — Delivery Hero Tech Hub (17–20. Dakika)
+- **EN:** *"In **2022**, I moved internally to **Delivery Hero’s Global Tech Hub** into a **25-person Integration Hub team**."*
+  *(TR: 2022'de şirket içinde Delivery Hero'nun Global Tech Hub'ındaki 25 kişilik Integration Hub ekibine geçtim.)*
+- **EN:** *"We worked **100% remotely in English** with product teams across Europe (Berlin) and Asia-Pacific."*
+  *(TR: Avrupa (Berlin) ve Asya-Pasifik'teki ürün ekipleriyle tamamen uzaktan ve %100 İngilizce çalıştık.)*
+- **EN:** *"My job was designing and maintaining reliable **3rd-party integrations** using **.NET, Go, AWS SQS, Lambda, and Kubernetes**, monitored with **Datadog**."*
+  *(TR: İşim .NET, Go, AWS SQS, Lambda ve Kubernetes kullanarak güvenilir 3. parti entegrasyonlar tasarlamak ve bunları Datadog ile izlemekti.)*
+- **EN:** *"My biggest achievement there was co-writing the RFC and building a centralized **Sandbox Integration Testing Platform**. It allowed **750 integrators in Turkey and 1,500 in Asia-Pacific (over 2,250 partners total)** to test their API integrations end-to-end before going live."*
+  *(TR: Oradaki en büyük başarım, RFC dokümanını hazırlayıp merkezi bir Sandbox Entegrasyon Test Platformu kurmaktı. Bu platform Türkiye'de 750, Asya-Pasifik'te 1.500 (toplam 2.250+) entegratörün canlıya çıkmadan önce API geçişlerini uçtan uca test etmesini sağladı.)*
+
+### 7. Finansal Güvenlik & Güncel Mimari Dönüşüm — Halkbank & Drivee (21–25. Dakika)
+- **EN:** *"In late **2023**, I did a 5-month project at **Halkbank**, building high-security banking microservices behind an API Gateway. Right as I finished that scope, **Drivee Technology** invited me to lead the transformation of the platform I had originally created years ago."*
+  *(TR: 2023 sonunda Halkbank'ta 5 aylık bir projede API Gateway arkasında yüksek güvenlikli bankacılık mikroservisleri geliştirdim. O kapsam biterken, yıllar önce ilk mimarisini kurduğum Drivee'den tüm platformu dönüştürmem için teklif geldi.)*
+- **EN:** *"Since **February 2024 at Drivee**, I have been leading the architecture and hands-on development of a platform processing **25 million data packets per day across 10,000 devices** (including cold-chain monitoring for 80 KFC branches)."*
+  *(TR: Şubat 2024'ten beri Drivee'de, 80 KFC şubesinin soğuk zincir takibi dahil 10.000 cihazdan günde 25 milyon veri paketi işleyen platformun mimarisini ve geliştirmesini yürütüyorum.)*
+- **EN:** *"I took a legacy monolith and broke it down into modern **.NET 10 microservices** using **DDD, Clean Architecture, Outbox Pattern, Debezium CDC, Kafka, Hangfire, and PostgreSQL**."*
+  *(TR: Eski monolitik yapıyı alıp DDD, Clean Architecture, Outbox Pattern, Debezium CDC, Kafka, Hangfire ve PostgreSQL kullanarak modern .NET 10 mikroservislerine dönüştürdüm.)*
+- **EN:** *"I also set up our CI/CD quality gates with **GitHub Actions, SonarQube, Docker, and GitHub Copilot Review**—which cut our PR review waiting time by a full day—and worked with **React and TypeScript** on the web side."*
+  *(TR: Ayrıca GitHub Actions, SonarQube, Docker ve PR bekleme süremizi 1 gün kısaltan GitHub Copilot Review ile CI/CD kalite kapılarımızı kurdum; web tarafında da React ve TypeScript ile çalıştım.)*
+
+### 8. Çoklu Sistemlerde Hata Yönetimi ve Bu Pozisyona Bakışım (26–30. Dakika)
+- **EN:** *"Why does this role fit me so well? Because in e-commerce integrations, **things always go wrong**—an ERP like NetSuite goes down during checkout, a webhook comes twice, or stock changes on two channels at once."*
+  *(TR: Bu rol neden bana çok uygun? Çünkü e-ticaret entegrasyonlarında her zaman bir şeyler ters gider; ödeme anında NetSuite ERP çöker, bir webhook iki kez gelir veya stok iki kanalda aynı anda değişir.)*
+- **EN:** *"In my projects, I solve these using **asynchronous queues, the Outbox Pattern, Idempotency Keys in PostgreSQL, exponential retries, Dead-Letter Queues (DLQ), and Correlation IDs** in Datadog or Elastic APM so we never lose an order and can diagnose issues in seconds."*
+  *(TR: Projelerimde bunları asenkron kuyruklar, Outbox Pattern, PostgreSQL'de Idempotency Key'ler, kademeli retry'lar, Dead-Letter Queue (DLQ) ve Datadog/Elastic APM'de Correlation ID'ler kullanarak çözüyorum; böylece hiçbir siparişi kaybetmiyoruz ve sorunları saniyeler içinde teşhis ediyoruz.)*
+- **EN:** *"Now that Drivee's transformation is complete, I want a long-term remote role with a European team where I can help transition their platform from the external agency in-house and own the .NET integration core."*
+  *(TR: Drivee'deki dönüşümü tamamladığım için, şimdi Avrupalı bir ekipte platformu dış ajanstan iç ekibe devralmalarına yardımcı olacağım ve .NET entegrasyon çekirdeğini sahipleneceğim uzun vadeli bir remote rol istiyorum.)*
 
 ---
 
