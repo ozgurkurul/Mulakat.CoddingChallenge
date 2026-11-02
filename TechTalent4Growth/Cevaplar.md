@@ -7,58 +7,61 @@
 
 ---
 
-## 🇬🇧 BÖLÜM 1: Kees'e Gönderilecek Doğal İngilizce E-Posta Metni
+## 🇬🇧 BÖLÜM 1: Doğrudan Kopyala-Yapıştır Yapmalık Düz E-Posta Metni (Markdown İşaretsiz)
+
+> ⚠️ **Neden Markdown işaretlerini (`**` ve `` ` ``) kaldırdım?** VS Code'dan doğrudan kopyalayıp e-postaya veya LinkedIn'e yapıştırdığında yıldız (`**`) ve tırnak (`` ` ``) işaretleri metnin içinde görünür ve bir yerden kopyalandığı anlaşılır. Aşağıdaki metin **%100 temiz düz e-posta (plain-text)** formatındadır. Ayrıca girişe Kees'in kendi önerisine atıfla *"As you suggested, I wrote down the technical details in Turkish first and translated them into English"* cümlesini ekledim; böylece yazılı İngilizcenin neden konuşmadan daha akıcı olduğunu Kees çok doğal karşılayacaktır.
+
+---
 
 Hi Kees,
 
-Thank you for your email and for giving me the chance to explain these points in writing. During the call, it was a bit hard for me to express all the low-level flow details on the spot, so writing them down helps a lot.
+Thank you for your email. During the call, it was a bit hard for me to express all the low-level flow details in English on the spot. As you suggested, I wrote down the technical details in Turkish first and translated them into English so I could explain everything clearly.
 
 Here are the answers based on what we actually ran in production and what I personally built:
 
----
 
-**1. Checkout idempotency - Yemeksepeti**
+1. Checkout idempotency - Yemeksepeti
 
-In the Yemeksepeti Mahalle project, I personally built the Order and Campaign microservices using .NET, PostgreSQL, and Redis. To make sure only one order is created, we used **both Redis atomic operations and a PostgreSQL unique constraint** together:
+In the Yemeksepeti Mahalle project, I personally built the Order and Campaign microservices using .NET, PostgreSQL, and Redis. To guarantee that only one order is created, we used both Redis atomic operations and a PostgreSQL unique constraint together.
 
-* **10 simultaneous requests & Redis:** When the user clicked checkout on the mobile app, the request included an `Idempotency-Key` (linked to the `BasketId`). Before running any checkout code, our .NET service ran an atomic Redis command: `SET key "processing" NX EX 60` (and we used a small Lua script to safely release the lock only if the current pod owned it). Because Redis is single-threaded, even if 10 identical requests hit 10 different pods at the exact same millisecond, only the first one gets `OK` and continues. The other 9 requests get `false` and we immediately return `409 Conflict` (or return the created order if it already finished).
-* **Database Unique Constraint (Final Guard):** We never trusted Redis alone for order creation. In our PostgreSQL `orders` table, we also had a `UNIQUE` index on `basket_id` (and `idempotency_key`). Even if two requests somehow passed Redis, PostgreSQL only allows the first `INSERT` to succeed. The second one throws a unique constraint error (`23505`), which we catch in C# and return the existing order.
-* **What if Redis is unavailable or the key expires?** If Redis was down, our service logged a warning and fell back directly to PostgreSQL. And if the Redis key expired later, it wasn't a problem because the order was already saved permanently in PostgreSQL with that unique `basket_id` (and the basket status was changed to `Completed`). So any late retry was still blocked by the database.
+When the user clicked checkout on the mobile app, the request included an Idempotency-Key (linked to the BasketId). Before running any checkout code, our .NET service executed an atomic Redis command: SET key "processing" NX EX 60 (and we used a small Lua script to safely release the lock only if the current pod owned it). Because Redis is single-threaded, even if 10 identical requests hit 10 different pods at the exact same millisecond, only the first one gets OK and continues. The other 9 requests get false and we immediately return 409 Conflict (or return the created order if it already finished).
 
----
+However, we never trusted Redis alone for order creation. In our PostgreSQL orders table, we also had a UNIQUE index on basket_id (and idempotency_key). Even if two requests somehow passed Redis, PostgreSQL only allows the first INSERT to succeed. The second one throws a unique constraint error, which we catch in C# and return the existing order.
 
-**2. Inventory synchronization - DeFacto**
+If Redis became unavailable, our service logged a warning and fell back directly to PostgreSQL. And if the Redis key expired later, it wasn't a problem because the order was already saved permanently in PostgreSQL with that unique basket_id (and the basket status was changed to Completed). So any late retry was still blocked by the database.
 
-* **My personal role:** At DeFacto, different teams owned different parts of the system. A separate ERP/Warehouse team managed the physical store-to-ERP stock sync engine. My personal responsibility was on the **Omnichannel Order Management (OMS), Marketplace, and Cargo/Return integration team**. I worked on consuming stock availability, allocating orders to stores or warehouses, reserving stock when an order came in, and syncing order/return statuses back to the ERP and marketplaces.
-* **Preventing overselling on the last item:**
-  1. **Atomic SQL update & RowVersion:** When reserving stock for an order, we didn't read the stock into memory and update it later. We updated the reserved stock directly in SQL with a condition (`UPDATE Stock SET ReservedQty = ReservedQty + @qty WHERE Sku = @sku AND (PhysicalQty - ReservedQty) >= @qty`) together with optimistic locking (`RowVersion`). If only 1 item was left, only the first transaction updated the row (`1 row affected`), and the second one got `0 rows affected`.
-  2. **Store re-allocation (Omnichannel fallback):** Since DeFacto shipped orders from both central warehouses and hundreds of retail stores, if the last item in Store A was just taken by another customer at that millisecond (or was found damaged during picking), our allocation service automatically reassigned the order to Store B that still had stock, instead of cancelling the customer's order.
-  3. **Safety buffer for marketplaces:** When sending stock numbers to external marketplaces, we kept a small safety buffer (for example, holding back 1-2 items on fast-selling products) so sync delays wouldn't cause overselling.
-* **When the ERP was down & Reconciliation:** Order creation worked asynchronously over message queues. If the ERP was temporarily down, our OMS continued taking orders using its local stock/reservation tables and queued the ERP updates. When the ERP came back online, the queued messages were processed. We also had scheduled background jobs that compared the ERP's physical stock snapshots with our OMS reservations and fixed any differences.
 
----
+2. Inventory synchronization - DeFacto
 
-**3. External API failures - order processing**
+At DeFacto, different teams owned different parts of the platform. A separate ERP/Warehouse team managed the physical store-to-ERP stock sync engine. My personal responsibility was on the Omnichannel Order Management (OMS), Marketplace, and Cargo/Return integration team. I worked on consuming stock availability, allocating orders to stores or warehouses, reserving stock when an order came in, and syncing order/return statuses back to the ERP and marketplaces.
 
-When our backend sends a `POST /orders` request to an external platform and gets a timeout, we don't know if the request failed on the way there, or if the external system created the order and the response timed out on the way back.
+To prevent overselling when two customers ordered the last item simultaneously, we used three mechanisms:
+First, when reserving stock for an order, we didn't read the stock into memory and update it later. We updated the reserved stock directly in SQL with a condition (WHERE PhysicalQty - ReservedQty >= requestedQty) together with optimistic locking (RowVersion). If only 1 item was left, only the first transaction updated the row (1 row affected), and the second one got 0 rows affected.
+Second, since DeFacto shipped orders from both central warehouses and hundreds of retail stores, if the last item in Store A was just taken by another customer at that millisecond (or was found damaged during picking), our allocation service automatically reassigned the order to Store B that still had stock, instead of cancelling the customer's order.
+Third, when sending stock numbers to external marketplaces, we kept a small safety buffer (holding back 1-2 items on fast-selling products) so sync delays wouldn't cause overselling.
 
-* **How to check and retry safely:** I handle this in two ways depending on what the external API supports:
-  1. **Using an Idempotency Key / External Reference ID:** Before calling the external API, we save our own `OrderId` (GUID) in our database with status `PendingSync`, and send it in the `Idempotency-Key` header or `externalOrderId` field. When our background worker retries with exponential backoff, the external platform sees the same ID and returns/updates the existing order instead of creating a second one.
-  2. **Querying before retrying (Read-Before-Retry):** If the external API doesn't support idempotency headers, our retry worker does **not** blindly send `POST` again. First, it calls `GET /orders?externalOrderId={ourOrderId}` to check if the order is already there. If it exists, we save their remote ID, mark our DB record as `Synced`, and stop. If it returns `404 Not Found`, we safely send the `POST` request again.
-* **My production experience:** Yes, I personally implemented this in production:
-  * A concrete example is transferring **Yemeksepeti orders to Delivery Hero's central Datafridge system** (and partner POS/ERP APIs). When sending high-volume order payloads to Datafridge, network timeouts happened regularly, and creating duplicate order records was unacceptable because Datafridge is used for financial and order reporting. We sent our unique Yemeksepeti `OrderId` as the reference key and used queue-based retries (AWS SQS) with status checks so that timed-out requests could be safely retried without ever duplicating an order in Datafridge. If an order still failed after max retries, it went to a Dead-Letter Queue (DLQ) for inspection.
-  * Earlier at **Novartz**, I also built this same "check by our reference number before retrying" logic when integrating bank payment gateways and LOGO ERP invoice creation.
+When the ERP was temporarily down, order creation worked asynchronously over message queues. Our OMS continued taking orders using its local stock/reservation tables and queued the ERP updates. Once the ERP came back online, the queued messages were processed. We also had scheduled background jobs that compared the ERP's physical stock snapshots with our OMS reservations and fixed any differences.
 
----
 
-**4. Transactional outbox and Kafka - Drivee**
+3. External API failures - order processing
 
-* **Keeping DB changes and events consistent:** If a service updates PostgreSQL and then tries to publish to Kafka directly in C# code, the app might crash or Kafka might fail right after the DB commit (dual-write problem). To solve this at Drivee, we save both the business data (like an alarm or vehicle update) and the outgoing event (`outbox_messages` table with a unique `event_id` UUID and JSON payload) inside **one single PostgreSQL transaction (`BEGIN ... COMMIT`)**. Either both are saved, or both roll back. Then, **Debezium (CDC)** reads PostgreSQL's WAL logs and pushes new rows from `outbox_messages` to the Kafka topic.
-* **What if a consumer updates its DB and crashes before acknowledging Kafka?** Since Kafka + Debezium works as *at-least-once* delivery, Kafka will send the same message again when the consumer restarts. To prevent processing it twice, we created a `processed_events` (Inbox) table in the consumer's PostgreSQL database with a `UNIQUE` primary key on `event_id`.
-  When our .NET consumer processes a message, it updates the business table **and** inserts the `event_id` into `processed_events` in **the same DB transaction**. Only after `COMMIT` succeeds do we manually commit the Kafka offset (`EnableAutoCommit = false`). If the app crashes right before committing the Kafka offset, it gets the message again on restart, sees that `event_id` is already in `processed_events`, skips the business logic, and just commits the offset.
-* **What I personally built:** At Drivee, I designed and coded this entire pipeline myself from scratch. I created the PostgreSQL `outbox_messages` and `processed_events` tables, wrote the .NET 10 / EF Core logic to save events in the same transaction, set up Kafka and the Debezium PostgreSQL connector on Docker, and wrote the idempotent .NET consumer services.
+When our backend sends a POST /orders request to an external platform and gets a timeout, we don't know if the request failed on the way there, or if the external system created the order and the response timed out on the way back.
 
----
+I handle this in two ways depending on what the external API supports:
+First, if the external API supports idempotency or reference IDs, we save our own OrderId (GUID) in our database with status PendingSync before calling the API, and send it in the Idempotency-Key header or externalOrderId field. When our background worker retries with exponential backoff, the external platform sees the same ID and returns/updates the existing order instead of creating a second one.
+Second, if the external API doesn't support idempotency headers, our retry worker does not blindly send POST again. First, it calls GET /orders?externalOrderId={ourOrderId} to check if the order is already there. If it exists, we save their remote ID, mark our DB record as Synced, and stop. If it returns 404 Not Found, we safely send the POST request again.
+
+I personally implemented this in production. A concrete example is transferring Yemeksepeti orders to Delivery Hero's central Datafridge system (as well as partner POS/ERP APIs). When sending high-volume order payloads to Datafridge, network timeouts happened regularly, and creating duplicate order records was unacceptable because Datafridge is used for financial and order reporting. We sent our unique Yemeksepeti OrderId as the reference key and used queue-based retries (AWS SQS) with status checks so that timed-out requests could be safely retried without ever duplicating an order in Datafridge. If an order still failed after max retries, it went to a Dead-Letter Queue (DLQ) for inspection. Earlier at Novartz, I also built this same "check by our reference number before retrying" logic when integrating bank payment gateways and LOGO ERP invoice creation.
+
+
+4. Transactional outbox and Kafka - Drivee
+
+If a service updates PostgreSQL and then tries to publish to Kafka directly in C# code, the app might crash or Kafka might fail right after the DB commit (dual-write problem). To solve this at Drivee, we save both the business data (like an alarm or vehicle update) and the outgoing event (into an outbox_messages table with a unique event_id UUID and JSON payload) inside one single PostgreSQL transaction (BEGIN ... COMMIT). Either both are saved, or both roll back. Then, Debezium (CDC) reads PostgreSQL's WAL logs and pushes new rows from outbox_messages to the Kafka topic.
+
+Since Kafka + Debezium works as at-least-once delivery, if a consumer updates its database and crashes before acknowledging the message, Kafka will send the same message again when the consumer restarts. To prevent processing it twice, we created a processed_events (Inbox) table in the consumer's PostgreSQL database with a UNIQUE primary key on event_id. When our .NET consumer processes a message, it updates the business table and inserts the event_id into processed_events in the same DB transaction. Only after COMMIT succeeds do we manually commit the Kafka offset (EnableAutoCommit = false). If the app crashes right before committing the Kafka offset, it gets the message again on restart, sees that event_id is already in processed_events, skips the business logic, and just commits the offset.
+
+At Drivee, I personally designed and coded this entire pipeline from scratch. I created the PostgreSQL outbox_messages and processed_events tables, wrote the .NET 10 / EF Core logic to save events in the same transaction, set up Kafka and the Debezium PostgreSQL connector on Docker, and wrote the idempotent .NET consumer services.
+
 
 Please let me know if everything is clear now or if you'd like me to explain any part in more detail.
 
