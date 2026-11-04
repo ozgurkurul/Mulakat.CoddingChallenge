@@ -23,6 +23,10 @@
 5. [Alan 5: Failure Recovery & Resilience (Hata Kurtarma, Timeout, DLQ & Mutabakat)](#5-alan-5-failure-recovery--resilience-hata-kurtarma-timeout-dlq--mutabakat)
 6. [Engineering Lead'in Sorabileceği 8 "Neden?" (Trade-Off) Sorusu](#6-engineering-leadin-sorabileceği-8-neden-trade-off-sorusu)
 7. [Her Gün Sesli Okunacak "30 Altın Tam Cümle" (Ezber Bozan Özet Liste)](#7-her-gün-sesli-okunacak-30-altın-tam-cümle-ezber-bozan-özet-liste)
+8. [Yazılım Mülakatında Hayat Kurtaran Aksiyon Fiilleri (Action Verbs)](#8-yazılım-mülakatında-hayat-kurtaran-aksiyon-fiilleri-action-verbs)
+9. [.NET & C# Mülakat Kelime ve Cümle Sözlüğü (Async, EF Core, DI, Mimari)](#9-net--c-mülakat-kelime-ve-cümle-sözlüğü-async-ef-core-di-mimari)
+10. [System Design & Dağıtık Mimari Kelime ve Cümle Sözlüğü](#10-system-design--dağıtık-mimari-kelime-ve-cümle-sözlüğü)
+11. [Konuşurken Cümleleri Bağlayan "Senior" Geçiş Kalıpları (Connectors)](#11-konuşurken-cümleleri-bağlayan-senior-geçiş-kalıpları-connectors)
 
 ---
 
@@ -369,4 +373,136 @@ Wovar'ın Engineering Lead'i senin yazdığın cevapları okuduktan sonra görü
     *(Hata veren herhangi bir siparişi saniyeler içinde takip edebilmek için tüm servisler ve kuyruklar boyunca bir `CorrelationId` taşırız.)*
 30. **"Checkout should never fail just because a downstream system like the ERP is temporarily down."**
     *(Ödeme adımı, sırf ERP gibi alt bir sistem geçici olarak çöktü diye asla başarısız olmamalıdır.)*
+
+---
+
+## 8. Yazılım Mülakatında Hayat Kurtaran Aksiyon Fiilleri (Action Verbs)
+
+> 💡 **Neden Önemli?** Teknik terimleri (`Outbox`, `Redis`, `Kafka`) zaten biliyorsun. Konuşurken asıl takılma noktası *"bunu ayırdık, şunu zorunlu kıldık, veritabanına düştük, yükü devrettik"* derken kullanılan **fiillerdir**. Bu 20 fiili cümleleriyle bilmek akıcılığını ikiye katlar:
+
+| İngilizce Fiil | Türkçe Anlamı | Mülakatta Doğrudan Kullanacağın Örnek Cümle |
+|---|---|---|
+| **Decouple** | Bağımlılığı koparmak / Ayırmak | *"We **decoupled** checkout from the ERP using a message queue."* (Ödeme adımını ERP'den mesaj kuyruğuyla ayırdık.) |
+| **Enforce** | Zorunlu kılmak / Uygulamak | *"We **enforce** a unique constraint on the `basket_id` column."* (`basket_id` kolonunda tekillik kısıtını zorunlu kılıyoruz.) |
+| **Prevent / Avoid** | Önlemek / Kaçınmak | *"This **prevents** duplicate orders and **avoids** race conditions."* (Bu, çift siparişleri önler ve yarış durumlarından kaçınır.) |
+| **Guarantee / Ensure** | Garanti etmek / Sağlamak | *"This **ensures** that stock never goes below zero."* (Bu, stoğun asla sıfırın altına düşmemesini sağlar.) |
+| **Persist** | Kalıcı olarak kaydetmek (DB'ye) | *"We **persist** the event in PostgreSQL before returning `200 OK`."* (`200 OK` dönmeden önce olayı PostgreSQL'e kalıcı olarak kaydederiz.) |
+| **Fall back (to)** | Yedek plana / DB'ye düşmek | *"If Redis is down, we **fall back to** PostgreSQL."* (Redis çökerse doğrudan PostgreSQL'e düşeriz.) |
+| **Reconcile** | Mutabakat yapmak / Eşitlemek | *"A nightly job **reconciles** ERP stock with our local reservations."* (Gece çalışan bir iş, ERP stoğu ile yerel rezervasyonlarımızı eşitler.) |
+| **Overwrite** | Üzerine yazıp ezmek | *"An older message must never **overwrite** newer stock data."* (Eski bir mesaj asla daha yeni stok verisinin üzerine yazmamalıdır.) |
+| **Discard / Skip** | Yok saymak / Atlamak | *"If the `event_id` already exists, the consumer **skips** it."* (`event_id` zaten varsa consumer onu atlar.) |
+| **Propagate** | Taşımak / İletmek | *"We **propagate** the `CorrelationId` and `CancellationToken` across all calls."* (`CorrelationId` ve `CancellationToken`'ı tüm çağrılar boyunca taşırız.) |
+| **Offload** | Yükü başka yere devretmek | *"We **offload** heavy report generation to background workers."* (Ağır rapor üretim yükünü arka plan işçilerine devrederiz.) |
+| **Throttle / Rate-limit** | Hız sınırı koymak / Dizginlemek | *"We **throttle** outgoing requests so we don't overwhelm the ERP."* (ERP'yi boğmamak için giden istekleri sınırlandırırız.) |
+| **Exhaust** | Tüketmek / Bitirmek | *"Long HTTP calls inside transactions **exhaust** the DB connection pool."* (Transaction içindeki uzun HTTP çağrıları DB bağlantı havuzunu tüketir.) |
+| **Isolate** | Yalıtmak / İzole etmek | *"We **isolated** the real-time alert service from the legacy monolith."* (Gerçek zamanlı alarm servisini eski monolitten izole ettik.) |
+| **Mitigate** | Riski/etkiyi azaltmak | *"A safety buffer **mitigates** the risk of marketplace overselling."* (Güvenlik stoğu, pazaryerinde fazla satış riskini azaltır.) |
+| **Replay** | Yeniden oynatmak / Tekrar işlemek | *"Once the bug is fixed, we **replay** the failed messages from the DLQ."* (Hata düzeltilince DLQ'daki mesajları yeniden oynatırız.) |
+| **Roll back / Compensate** | Geri almak / Telafi etmek | *"If payment fails, we **compensate** by releasing the reserved stock."* (Ödeme başarısız olursa rezerve stoğu serbest bırakarak telafi ederiz.) |
+| **Serialize / Deserialize** | JSON'a çevirmek / Nesneye çevirmek | *"We **serialize** the domain event as a JSON payload in the outbox table."* (Domain olayını outbox tablosuna JSON olarak serileştiririz.) |
+| **Pinpoint / Diagnose** | Nokta atışı bulmak / Teşhis etmek | *"Distributed tracing helped us **pinpoint** the latency bottleneck."* (Dağıtık izleme, gecikme darboğazını nokta atışı bulmamızı sağladı.) |
+| **Scale out** | Yatayda büyütmek (Pod eklemek) | *"Because our services are stateless, we can easily **scale out** on Kubernetes."* (Servislerimiz durumsuz olduğu için Kubernetes'te kolayca yatay ölçekleyebiliriz.) |
+
+---
+
+## 9. .NET & C# Mülakat Kelime ve Cümle Sözlüğü (Async, EF Core, DI, Mimari)
+
+### 9.1. Async / Concurrency / Threading (.NET)
+
+| Terim | Türkçe Karşılığı ve Teknik Özeti | Mülakatta Söyleyeceğin İngilizce Cümle |
+|---|---|---|
+| **Thread Pool Starvation** | Thread havuzunun tükenmesi (`.Result` veya `.Wait()` yüzünden tüm thread'lerin bloklanması) | *"Blocking async calls with `.Result` causes **thread pool starvation** under high load."* |
+| **Non-blocking I/O** | I/O (DB, HTTP) beklerken thread'i bloklamayıp havuza iade etme | *"We use `async/await` all the way down for **non-blocking I/O**."* |
+| **CancellationToken** | İstemci bağlantıyı kestiğinde çalışan işi ve DB sorgusunu iptal eden token | *"We pass a **`CancellationToken`** to EF Core and `HttpClient` so aborted requests stop immediately."* |
+| **SemaphoreSlim** | `async/await` blokları içinde güvenle kullanılan asenkron kilit (`lock` içinde `await` kullanılamaz!) | *"Since you cannot `await` inside a C# `lock` block, we use **`SemaphoreSlim`** for async synchronization."* |
+| **Immutable / Record** | Oluşturulduktan sonra değiştirilemeyen veri tipi (Value Object ve DTO'lar için ideal) | *"We define DTOs and Value Objects as **immutable C# `record` types** so they are thread-safe."* |
+| **Garbage Collection (GC) Pressure** | Çok fazla kısa ömürlü nesne üretildiğinde GC'nin CPU'yu yorması | *"To reduce **GC pressure** on hot paths, we avoid unnecessary memory allocations."* |
+
+### 9.2. Dependency Injection (DI), HTTP & Background Jobs
+
+| Terim | Türkçe Karşılığı ve Teknik Özeti | Mülakatta Söyleyeceğin İngilizce Cümle |
+|---|---|---|
+| **Service Lifetimes (`Singleton`, `Scoped`, `Transient`)** | Uygulama boyu tek (`Singleton`), HTTP isteği boyu tek (`Scoped`), her çağrıda yeni (`Transient`) | *"`DbContext` is registered as **Scoped** so each HTTP request gets its own isolated unit of work."* |
+| **Captive Dependency** | `Singleton` bir servisin içine yanlışlıkla `Scoped` bir servis (`DbContext`) enjekte edilmesi hatası | *"Injecting a Scoped `DbContext` into a Singleton service creates a **captive dependency** and concurrency bugs."* |
+| **`IServiceScopeFactory`** | Arka plan worker'larında (`BackgroundService` / `Hangfire`) her iş için yeni bir DI scope açma aracı | *"In background workers, we use **`IServiceScopeFactory`** to create a fresh scope for each message."* |
+| **`IHttpClientFactory` & Resilience** | Socket tükenmesini (socket exhaustion) önleyen ve Polly ile retry/timeout ekleyen yapı | *"We use **`IHttpClientFactory`** with resilience handlers to manage timeouts, retries, and prevent socket exhaustion."* |
+| **Middleware Pipeline** | Gelen HTTP isteğinin sırayla geçtiği katmanlar (Exception Handling → Auth → Logging → Endpoint) | *"We handle global exceptions and correlation IDs in a custom ASP.NET Core **middleware**."* |
+
+### 9.3. Entity Framework Core (EF Core) & Veri Erişimi
+
+| Terim | Türkçe Karşılığı ve Teknik Özeti | Mülakatta Söyleyeceğin İngilizce Cümle |
+|---|---|---|
+| **Change Tracker** | EF Core'un belleğe çekilen entity'lerdeki değişiklikleri izleyen mekanizması | *"EF Core's **Change Tracker** detects modified properties and generates the SQL `UPDATE` on `SaveChanges`."* |
+| **`AsNoTracking()`** | Sadece okuma (Read-only) yapılan sorgularda Change Tracker'ı kapatarak hız ve bellek kazanma | *"For read-only queries, we always use **`AsNoTracking()`** to reduce memory usage and improve speed."* |
+| **N+1 Query Problem** | 1 ana sorgu atıp ardından döngü içindeki her satır için veritabanına N tane ek sorgu atma hatası | *"We prevent the **N+1 query problem** by projecting only the needed fields with `.Select()` or eager loading."* |
+| **Unit of Work / Interceptor** | Birden fazla değişikliği (örn. Sipariş + Outbox mesajı) tek bir `SaveChangesAsync()` ile kaydetme | *"We use an EF Core **`SaveChangesInterceptor`** to automatically write domain events into the Outbox table in the same transaction."* |
+| **Dapper (Micro-ORM)** | Çok yüksek performans gerektiren ham SQL sorguları için hafif ORM | *"We use EF Core for domain writes and **Dapper** when we need fast, raw SQL queries for reporting."* |
+
+### 9.4. Mimari & Kod Kalitesi (DDD, Clean Architecture, SOLID)
+
+| Terim | Türkçe Karşılığı ve Teknik Özeti | Mülakatta Söyleyeceğin İngilizce Cümle |
+|---|---|---|
+| **Bounded Context** | Bir domain modelinin ve iş kurallarının geçerli olduğu net sınır (örn. Sipariş vs Stok vs Katalog) | *"We separate Ordering, Inventory, and Catalog into distinct **bounded contexts** with clear boundaries."* |
+| **Aggregate Root** | Tutarlılık sınırını (transaction boundary) koruyan ana nesne (örn. `Order` ve içindeki `OrderLine`lar) | *"All changes to order lines must go through the `Order` **Aggregate Root** to protect business invariants."* |
+| **Domain Invariant** | Her koşulda doğru kalması gereken iş kuralı (örn. "Gönderilmiş sipariş iptal edilemez") | *"We enforce **domain invariants** inside the entity methods rather than scattering `if-else` checks in controllers."* |
+| **Anti-Corruption Layer (ACL)** | Dış sistemin (NetSuite, Channable) karmaşık veri modelini bizim temiz domain modelimize çeviren adaptör katmanı | *"We put an **Anti-Corruption Layer (ACL)** in front of external ERPs so their data models don't pollute our domain."* |
+| **Ports and Adapters (Hexagonal)** | İş mantığının arayüzler (Ports) tanımladığı, dış sistemlerin ise adaptörlerle (Adapters) bağlandığı mimari | *"Using **Ports and Adapters**, our core domain defines an `IErpGateway` interface, and the NetSuite client is just an infrastructure adapter."* |
+
+---
+
+## 10. System Design & Dağıtık Mimari Kelime ve Cümle Sözlüğü
+
+### 10.1. Veritabanı, Tutarlılık ve Performans (Database & Consistency)
+
+| Terim | Türkçe Karşılığı ve Teknik Özeti | Mülakatta Söyleyeceğin İngilizce Cümle |
+|---|---|---|
+| **Single Source of Truth (SSOT)** | Bir verinin asıl sahibi olan tek otorite sistem (örn. fiziksel stok için NetSuite, ürün içeriği için Akeneo) | *"For product information, Akeneo PIM is the **single source of truth**, and for physical stock, it is NetSuite."* |
+| **Strong vs. Eventual Consistency** | Anlık tam tutarlılık (aynı DB içinde ACID) vs. Nihai tutarlılık (sistemler arası kuyrukla birkaç saniye içinde eşitlenme) | *"We use **strong consistency** for local stock reservation, and **eventual consistency** when syncing with the ERP."* |
+| **Data Discrepancy / Drift** | İki sistem (Webshop ve ERP) arasındaki verinin zamanla farklılaşması / kayması | *"Scheduled reconciliation jobs detect any **data discrepancy** between BigCommerce and NetSuite."* |
+| **Composite & Partial Index** | Birden fazla kolonu kapsayan indeks (`(tenant_id, sku)`) ve sadece belirli koşuldaki satırları indeksleme (`WHERE status = 'PENDING'`) | *"We added a **partial index** on pending outbox rows so our background worker queries remain super fast."* |
+| **Connection Pool Exhaustion** | Veritabanı bağlantı havuzunun dolup yeni gelen isteklerin hata vermesi | *"Slow queries or external HTTP calls inside transactions can quickly lead to **connection pool exhaustion**."* |
+| **Cache Stampede & Invalidation** | Popüler bir cache süresi bittiğinde binlerce isteğin aynı anda DB'ye hücum etmesi / Cache'in temizlenmesi | *"When product prices change, we trigger an event for **cache invalidation** so customers never see stale prices."* |
+
+### 10.2. Mesajlaşma, Kuyruklar ve Dayanıklılık (Messaging & Resilience)
+
+| Terim | Türkçe Karşılığı ve Teknik Özeti | Mülakatta Söyleyeceğin İngilizce Cümle |
+|---|---|---|
+| **At-Least-Once Delivery** | Mesaj kuyruğunun mesajı kaybolmasın diye "en az bir kez" (bazen birden fazla kez) teslim etme garantisi | *"Because message brokers use **at-least-once delivery**, receiving duplicate messages is normal in production."* |
+| **Idempotent Consumer** | Aynı mesaj 3 kez gelse bile sadece 1 kez etki yaratan tüketici servis | *"Every queue worker we write is an **idempotent consumer** backed by a `processed_events` table."* |
+| **Poison Message & DLQ** | Bozuk format veya iş kuralı hatası yüzünden hiçbir zaman işlenemeyen mesaj ve onun atıldığı **Dead-Letter Queue** | *"To prevent a **poison message** from blocking the queue, we move it to the **Dead-Letter Queue (DLQ)** after max retries."* |
+| **Exponential Backoff with Jitter** | Tekrar denemeler arasındaki süreyi katlayarak artırma (2s, 4s, 8s) ve aynı anda yığılmayı önlemek için rastgele milisaniye (jitter) ekleme | *"When an external API fails transiently, we retry using **exponential backoff with jitter**."* |
+| **Circuit Breaker** | Çökmüş bir dış sisteme (örn. ERP) sürekli istek atıp kaynak tüketmek yerine devreyi geçici olarak kesen sigorta deseni | *"If a third-party API is completely down, a **circuit breaker** stops outgoing calls temporarily and lets messages wait in the queue."* |
+| **Backpressure & Rate Limiting** | Alt sistem (ERP) yavaşladığında tüketim hızını düşürerek karşı sistemi çökertmeme | *"Because ERPs have strict API rate limits, our queue consumers apply **backpressure** and process updates at a controlled pace."* |
+| **Saga & Compensating Action** | Çoklu sistemde bir adım başarısız olduğunda önceki başarılı adımları geri alan telafi işlemi | *"If payment fails after stock is reserved, a **compensating action** immediately releases the stock reservation."* |
+| **Throughput vs. Latency** | Saniyede işlenen toplam işlem sayısı (`Throughput`) vs. tek bir işlemin yanıt süresi (`Latency`) | *"Adding Redis caching reduced our API **latency**, while Kafka partitioning increased our overall **throughput**."* |
+
+---
+
+## 11. Konuşurken Cümleleri Bağlayan "Senior" Geçiş Kalıpları (Connectors)
+
+Mülakatta düşünmek için zaman kazanmak ve konuşmanı çok doğal bir **Senior / Lead** seviyesine taşımak için şu 10 kısa bağlacı kullan:
+
+1. **Ödünleşim (Trade-off) anlatırken:**
+   - *"The trade-off here is between [X] and [Y]..."* (Buradaki ödünleşim X ile Y arasındadır...)
+   - *Örnek:* *"The trade-off here is between strong consistency and checkout speed; we chose eventual consistency for ERP sync so checkout stays fast."*
+2. **Arka planda nasıl çalıştığını anlatırken:**
+   - *"Under the hood, what happens is..."* (Arka planda / kaputun altında olan şey şudur...)
+3. **Neden o mimariyi seçtiğini bağlarken:**
+   - *"The main reason we went with this approach is..."* (Bu yaklaşımı seçmemizin ana nedeni...)
+4. **Kötü/tehlikeli senaryoyu (Edge case) belirtirken:**
+   - *"In edge cases where [X fails / times out]..."* (X'in hata verdiği / zaman aşımına uğradığı uç durumlarda...)
+5. **Yedek/güvenlik önlemini anlatırken:**
+   - *"As a final safety net..."* (Son bir güvenlik ağı olarak...)
+   - *Örnek:* *"As a final safety net, PostgreSQL enforces a unique index on the basket ID."*
+6. **Bağımlılığı kopardığını vurgularken:**
+   - *"To avoid tightly coupling the webshop to the ERP..."* (Webshop'u ERP'ye sıkı sıkıya bağlamamak için...)
+7. **Sorumluluk sınırını çizerken:**
+   - *"From a data ownership perspective..."* (Veri sahipliği açısından bakarsak...)
+8. **İş kritikliğini vurgularken:**
+   - *"Because order creation is business-critical..."* (Sipariş oluşturma iş açısından hayati olduğu için...)
+9. **Canlı ortam (Production) gerçekliğini vurgularken:**
+   - *"In a real-world production environment, external APIs will eventually fail or time out, so..."* (Gerçek bir canlı ortamda dış API'ler er ya da geç hata verir veya zaman aşımına uğrar, bu yüzden...)
+10. **Cevabı bitirip topu karşıya atarken:**
+    - *"Does that match how you currently handle it at Wovar, or do you have a different flow?"* (Bu şu an Wovar'da ele alış şeklinizle örtüşüyor mu, yoksa farklı bir akışınız mı var?)
+
 
