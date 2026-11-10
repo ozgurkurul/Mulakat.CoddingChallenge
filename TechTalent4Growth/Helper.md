@@ -27,6 +27,7 @@
 9. [.NET & C# Mülakat Kelime ve Cümle Sözlüğü (Async, EF Core, DI, Mimari)](#9-net--c-mülakat-kelime-ve-cümle-sözlüğü-async-ef-core-di-mimari)
 10. [System Design & Dağıtık Mimari Kelime ve Cümle Sözlüğü](#10-system-design--dağıtık-mimari-kelime-ve-cümle-sözlüğü)
 11. [Konuşurken Cümleleri Bağlayan "Senior" Geçiş Kalıpları (Connectors)](#11-konuşurken-cümleleri-bağlayan-senior-geçiş-kalıpları-connectors)
+12. [Alan 6 (Ek): Cache Storm, Multi-Pod Cache Düşürme, Rate Limiting, Gateway & Tracing](#12-alan-6-ek-cache-storm-multi-pod-cache-düşürme-rate-limiting-gateway--tracing)
 
 ---
 
@@ -504,5 +505,83 @@ Mülakatta düşünmek için zaman kazanmak ve konuşmanı çok doğal bir **Sen
    - *"In a real-world production environment, external APIs will eventually fail or time out, so..."* (Gerçek bir canlı ortamda dış API'ler er ya da geç hata verir veya zaman aşımına uğrar, bu yüzden...)
 10. **Cevabı bitirip topu karşıya atarken:**
     - *"Does that match how you currently handle it at Wovar, or do you have a different flow?"* (Bu şu an Wovar'da ele alış şeklinizle örtüşüyor mu, yoksa farklı bir akışınız mı var?)
+
+---
+
+## 12. Alan 6 (Ek): Cache Storm, Multi-Pod Cache Düşürme, Rate Limiting, Gateway & Tracing
+
+> Bu bölüm; **Redis Cache Storm (Stampede)**, **TTL Jitter**, **Aynı Anda Cache Güncelleme**, **Diğer Pod'lardan Cache Düşürme (Multi-Instance Invalidation)**, **Rate Limiting**, **API Gateway** ve **Logging/Tracing** sorularına doğrudan `Problem → Solution → Reason → Result` formatında yanıt vermen için hazırlanmıştır.
+
+---
+
+### 🎯 Senaryo 6A: Redis Cache Expired Olursa "Cache Storm / Stampede" Nasıl Önlenir? (+ Jitter)
+
+- 🔴 **Problem:**
+  - **EN:** *"When a heavily requested Redis key (like homepage campaigns or popular products) expires, thousands of concurrent requests miss the cache at the exact same millisecond and hit PostgreSQL simultaneously—causing a **cache stampede**. Also, if thousands of keys are cached with the exact same 1-hour TTL, they all expire at the same second (**cache avalanche**)."*
+  - *(TR: Çok sık okunan bir Redis anahtarının süresi dolduğunda, binlerce eşzamanlı istek aynı milisaniyede önbelleği ıskalar ve aynı anda PostgreSQL'e hücum eder; buna **cache stampede (izdiham)** denir. Ayrıca binlerce anahtar birebir aynı 1 saatlik TTL ile kaydedilirse hepsi aynı saniyede düşer (**cache avalanche / çığ**).)*
+- 🛠️ **Solution:**
+  - **EN:** *"We prevent this with three techniques:*
+    *1. **TTL Jitter:** We add a random offset to every TTL (for example, 60 minutes + a random 1 to 10 minutes) so keys never expire all at once.*
+    *2. **Distributed Mutex / `.NET HybridCache`:** On a cache miss, only the first request acquires a lock to query PostgreSQL and refresh Redis, while concurrent requests wait briefly and share that single result.*
+    *3. **Background Refresh (Soft TTL):** For ultra-hot keys, a background job refreshes the cache before the hard TTL expires so users never experience a cache miss."*
+  - *(TR: Bunu 3 teknikle önlüyoruz: 1. **TTL Jitter:** Anahtarlar aynı anda düşmesin diye her TTL süresine rastgele 1-10 dakika ekleriz. 2. **Distributed Lock / `.NET HybridCache`:** Cache miss olduğunda sadece ilk istek kilit alıp PostgreSQL'e gider, diğerleri o tek sorgunun sonucunu paylaşır. 3. **Background Refresh:** Çok popüler verileri süresi dolmadan arka planda yenileriz.)*
+- 🧠 **Reason:**
+  - **EN:** *"The reason is to protect PostgreSQL from sudden connection spikes while keeping API response times under a few milliseconds."*
+  - *(TR: Bunun nedeni, API yanıt sürelerini birkaç milisaniyenin altında tutarken PostgreSQL'i ani bağlantı patlamalarından korumaktır.)*
+- ✅ **Result:**
+  - **EN:** *"As a result, instead of 5,000 queries hitting the database when a cache expires, only 1 query hits PostgreSQL and the system stays stable."*
+  - *(TR: Sonuç olarak cache süresi dolduğunda veritabanına 5.000 sorgu yerine sadece 1 sorgu gider ve sistem kararlı kalır.)*
+
+---
+
+### 🎯 Senaryo 6B: Aynı Anda Aynı Cache'i Güncellemek & Diğer Pod/Örneklerden Cache Düşürmek
+
+- 🔴 **Problem:**
+  - **EN:** *"Two problems happen in multi-pod environments: First, if two threads update PostgreSQL and then overwrite Redis directly, the slower thread might write older data into Redis. Second, if we run 10 pods with local in-memory cache (`IMemoryCache`) in front of Redis, updating a product on Pod 1 leaves stale cache in the RAM of the other 9 pods."*
+  - *(TR: Çoklu pod ortamlarında iki sorun yaşanır: Birincisi, iki thread PostgreSQL'i güncelleyip doğrudan Redis'in üzerine yazarsa, yavaş kalan thread eski veriyi Redis'e yazabilir. İkincisi, Redis önünde yerel bellek (`IMemoryCache`) kullanan 10 pod varsa, Pod 1'de yapılan güncelleme diğer 9 pod'un RAM'indeki önbelleği eski bırakır.)*
+- 🛠️ **Solution:**
+  - **EN:** *"First, instead of overwriting Redis blindly, we either **delete (invalidate)** the Redis key after the DB commit (Cache-Aside) or use a **Lua script with a version check** so older versions are ignored. Second, to drop local L1 caches on the other 9 pods, we use **Redis Pub/Sub (or Kafka)** as a backplane: Pod 1 publishes a `CacheInvalidated(key)` event, and all other pods immediately evict that key from their local `IMemoryCache`."*
+  - *(TR: İlk olarak, Redis'in üzerine körü körüne yazmak yerine DB commit sonrası Redis anahtarını **sileriz (invalidate)** veya eski versiyonların reddedilmesi için **versiyon kontrollü Lua scripti** kullanırız. İkinci olarak, diğer 9 pod'daki yerel L1 cache'i düşürmek için arka kanal (backplane) olarak **Redis Pub/Sub (veya Kafka)** kullanırız: Pod 1 `CacheInvalidated(key)` mesajı yayınlar ve diğer tüm pod'lar o anahtarı kendi RAM'lerinden anında siler.)*
+- 🧠 **Reason:**
+  - **EN:** *"The reason is that local RAM (`IMemoryCache`) is isolated per container process, so pods need a lightweight broadcast channel to stay in sync."*
+  - *(TR: Bunun nedeni, yerel RAM'in (`IMemoryCache`) her konteyner sürecinde izole olmasıdır; bu yüzden pod'ların senkron kalması için hafif bir yayın kanalına ihtiyacı vardır.)*
+- ✅ **Result:**
+  - **EN:** *"As a result, all running pods serve consistent product prices and stock levels without serving stale data."*
+  - *(TR: Sonuç olarak çalışan tüm pod'lar bayat veri dönmeden tutarlı ürün fiyatları ve stok seviyeleri sunar.)*
+
+---
+
+### 🎯 Senaryo 6C: Rate Limiting ve API Gateway (Gelen ve Giden Trafik Kontrolü)
+
+- 🔴 **Problem:**
+  - **EN:** *"On the incoming side, a sudden traffic spike or abusive client can overload our backend APIs. On the outgoing side, if our queue workers send too many parallel requests to an external ERP like NetSuite, the ERP will throttle us with `429 Too Many Requests`."*
+  - *(TR: Gelen trafik tarafında, ani bir trafik patlaması veya kötü niyetli bir istemci backend API'lerimizi kilitleyebilir. Giden trafik tarafında ise kuyruk işçilerimiz NetSuite gibi bir dış ERP'ye çok fazla paralel istek gönderirse ERP bizi `429 Too Many Requests` ile engeller.)*
+- 🛠️ **Solution:**
+  - **EN:** *"At the edge, we place an **API Gateway** (like Kong, YARP, or Azure API Management) for centralized JWT authentication, routing, and **Redis-backed Sliding Window / Token Bucket rate limiting**, returning `429` with a `Retry-After` header. On the outgoing side, we limit concurrency in our .NET workers (using `SemaphoreSlim` / Polly RateLimiter) and respect the ERP's `Retry-After` headers."*
+  - *(TR: Sınırda merkezi JWT doğrulama, yönlendirme ve **Redis destekli Sliding Window / Token Bucket hız sınırlandırması** için bir **API Gateway** kullanıp `Retry-After` başlığıyla `429` döneriz. Giden tarafta ise .NET işçilerimizde eşzamanlılığı sınırlar ve ERP'nin `Retry-After` başlıklarına uyarız.)*
+- 🧠 **Reason:**
+  - **EN:** *"Handling cross-cutting concerns at the API Gateway keeps our microservices clean, while outbound throttling prevents us from breaking third-party rate limits."*
+  - *(TR: Kesişen ilgileri API Gateway'de yönetmek mikroservislerimizi temiz tutar; giden trafik hız sınırı ise üçüncü parti limitleri aşmamızı önler.)*
+- ✅ **Result:**
+  - **EN:** *"As a result, both our internal services and external ERP integrations stay healthy and predictable under heavy load."*
+  - *(TR: Sonuç olarak yoğun yük altında hem iç servislerimiz hem de dış ERP entegrasyonlarımız sağlıklı ve öngörülebilir kalır.)*
+
+---
+
+### 🎯 Senaryo 6D: Structured Logging ve Distributed Tracing (Datadog / Elastic APM)
+
+- 🔴 **Problem:**
+  - **EN:** *"In a distributed e-commerce platform where a single order passes through BigCommerce, the .NET integration layer, message queues, and NetSuite ERP, plain-text logs on separate servers make it nearly impossible to find why an order failed or why an endpoint is slow."*
+  - *(TR: Tek bir siparişin BigCommerce, .NET entegrasyon katmanı, mesaj kuyrukları ve NetSuite ERP'den geçtiği dağıtık bir e-ticaret platformunda, ayrı sunuculardaki düz metin loglar bir siparişin neden hata verdiğini veya bir uç noktanın neden yavaşladığını bulmayı neredeyse imkansız kılar.)*
+- 🛠️ **Solution:**
+  - **EN:** *"To solve this at Yemeksepeti, Delivery Hero, and Drivee, we used **Structured Logging (Serilog JSON)** with **Datadog and Elastic APM**. We generate a `CorrelationId` (W3C `TraceId`) at the gateway and pass it in HTTP headers and Kafka/SQS message headers across every service, while masking sensitive GDPR/PII data."*
+  - *(TR: Bunu Yemeksepeti, Delivery Hero ve Drivee'de **Datadog ve Elastic APM** ile **Yapılandırılmış Loglama (Serilog JSON)** kullanarak çözdük. Gateway'de bir `CorrelationId` (`TraceId`) üretip tüm servisler boyunca HTTP ve Kafka/SQS başlıklarında taşıyoruz; bu sırada hassas GDPR/kişisel verileri maskeliyoruz.)*
+- 🧠 **Reason:**
+  - **EN:** *"Because propagating a single `TraceId` connects all logs and database/HTTP spans into one visual waterfall timeline."*
+  - *(TR: Çünkü tek bir `TraceId` taşımak tüm logları ve veritabanı/HTTP adımlarını tek bir görsel şelale zaman çizelgesinde birleştirir.)*
+- ✅ **Result:**
+  - **EN:** *"As a result, we can search by `OrderId` or `CorrelationId` and pinpoint the exact root cause or latency bottleneck across all systems in seconds."*
+  - *(TR: Sonuç olarak `OrderId` veya `CorrelationId` ile arama yapıp tüm sistemler arasındaki kök nedeni veya gecikme darboğazını saniyeler içinde nokta atışı bulabiliyoruz.)*
+
 
 

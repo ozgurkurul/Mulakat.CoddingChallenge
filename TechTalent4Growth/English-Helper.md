@@ -1,6 +1,6 @@
-# 🗣️ Senior .NET Developer — Mülakat ve Günlük Mühendislik İçin 150 Altın İngilizce Cümle (`English-Helper.md`)
+# 🗣️ Senior .NET Developer — Mülakat ve Günlük Mühendislik İçin 185 Altın İngilizce Cümle (`English-Helper.md`)
 
-> **Amaç:** Bu dosya, bir Senior .NET Backend geliştiricinin teknik mülakatlarda ve uluslararası (remote) ekiplerde günlük olarak en çok kurduğu **150 tam, doğal ve akıcı İngilizce cümleyi** içerir.
+> **Amaç:** Bu dosya, bir Senior .NET Backend geliştiricinin teknik mülakatlarda ve uluslararası (remote) ekiplerde günlük olarak en çok kurduğu **185 tam, doğal ve akıcı İngilizce cümleyi** içerir.
 > **Nasıl Çalışmalısın?** Tek tek kelime ezberlemek yerine her gün 1-2 bölümü (20–40 cümleyi) **sesli olarak** oku. Kalın yazılmış anahtar kelimelerin cümle içinde nasıl kullanıldığına dikkat et.
 
 ---
@@ -14,6 +14,7 @@
 5. [Bölüm 5: DevOps, CI/CD, Docker, Observability & Test (Cümle 81–100)](#5-bölüm-5-devops-cicd-docker-observability--test-cümle-81100)
 6. [Bölüm 6: Günlük Takım İletişimi, Standup, PR Review & Mülakat Kalıpları (Cümle 101–120)](#6-bölüm-6-günlük-takım-iletişimi-standup-pr-review--mülakat-kalıpları-cümle-101120)
 7. [Bölüm 7: Temel C# & .NET Mülakat Soruları İçin Hazır Cevap Cümleleri (Cümle 121–150)](#7-bölüm-7-temel-c--net-mülakat-soruları-için-hazır-cevap-cümleleri-cümle-121150)
+8. [Bölüm 8: Cache Storm/Stampede, Multi-Pod Invalidation, Rate Limiting, Gateway & Tracing (Cümle 151–185)](#8-bölüm-8-cache-stormstampede-multi-pod-invalidation-rate-limiting-gateway--tracing-cümle-151185)
 
 ---
 
@@ -359,5 +360,76 @@
      *(Authentication kullanıcının *kim* olduğunu (örneğin JWT token ile) doğrular; Authorization ise o kullanıcının roller veya politikalar üzerinden *neyi* yapmaya yetkili olduğunu kontrol eder.)*
 150. **`[Garbage Collector vs Memory Leak in .NET]` "Even with a Garbage Collector, memory leaks still happen in .NET if you keep references in static lists, forget to unsubscribe from events, or fail to dispose unmanaged resources."**
      *(Garbage Collector olsa bile, statik listelerde referans tutarsanız, event aboneliklerini kaldırmayı unutursanız veya yönetilmeyen kaynakları dispose etmezseniz .NET'te yine bellek sızıntısı (memory leak) yaşanır.)*
+
+---
+
+## 8. Bölüm 8: Cache Storm/Stampede, Multi-Pod Invalidation, Rate Limiting, Gateway & Tracing (Cümle 151–185)
+
+### A. Redis Cache Expiration, Cache Storm (Stampede) & Jitter (151–160)
+
+151. **`[Cache Storm / Stampede Nedir?]` "When a popular Redis key expires under heavy traffic, thousands of concurrent requests miss the cache at the exact same millisecond and hit PostgreSQL at once—this is called a cache stampede (or cache storm)."**
+     *(Yoğun trafik altında popüler bir Redis anahtarının süresi dolduğunda, binlerce eşzamanlı istek aynı milisaniyede önbelleği ıskalar ve aynı anda PostgreSQL'e yüklenir; buna 'cache stampede' veya 'cache storm' denir.)*
+152. **`[TTL Jitter Ekleme]` "If we preload 10,000 products into Redis with the exact same 1-hour TTL, they will all expire at the same second and cause a cache avalanche; to prevent this, we add random TTL jitter (for example, 60 minutes plus a random 1 to 10 minutes)."**
+     *(10.000 ürünü Redis'e birebir aynı 1 saatlik TTL ile yüklersek hepsi aynı saniyede düşer ve önbellek çığına yol açar; bunu önlemek için rastgele TTL jitter ekleriz—örneğin 60 dakika artı rastgele 1 ila 10 dakika.)*
+153. **`[Distributed Lock / Mutex ile Önleme]` "To stop a cache stampede on a hot key, only the first request acquires a short lock to query PostgreSQL and repopulate Redis, while the other requests wait briefly or read the newly cached value."**
+     *(Çok okunan bir anahtarda cache izdihamını durdurmak için yalnızca ilk istek kısa bir kilit alıp PostgreSQL'i sorgular ve Redis'i doldurur; diğer istekler ise kısa süre bekler ve yeni önbelleğe alınan değeri okur.)*
+154. **`[Soft TTL / Stale-While-Revalidate]` "For ultra-hot data like homepage campaigns, we use a soft TTL and a hard TTL: when the soft TTL expires, we immediately return the slightly stale data to the user and trigger a background worker to refresh the cache asynchronously."**
+     *(Anasayfa kampanyaları gibi çok yoğun okunan verilerde 'soft TTL' ve 'hard TTL' kullanırız: soft TTL dolduğunda kullanıcıya hemen mevcut veriyi döneriz ve önbelleği asenkron olarak yenilemesi için arka planda bir iş tetikleriz.)*
+155. **`[Modern .NET HybridCache]` "In modern .NET (.NET 9 and .NET 10), `HybridCache` combines in-memory L1 cache and Redis L2 cache and provides built-in stampede protection so concurrent callers share a single database fetch."**
+     *(Modern .NET'te (.NET 9 ve .NET 10) `HybridCache`, bellek içi L1 önbellek ile Redis L2 önbelleği birleştirir ve yerleşik izdiham koruması sunarak eşzamanlı çağrıların tek bir veritabanı sorgusunu paylaşmasını sağlar.)*
+156. **`[Cache Penetration / Olmayan Veri]` "If someone repeatedly requests a product ID that doesn't exist in the database, it bypasses Redis every time; to prevent this, we cache a `null` placeholder with a short 1-minute TTL."**
+     *(Birisi veritabanında olmayan bir ürün ID'sini sürekli sorgularsa her seferinde Redis'i geçip DB'ye iner; bunu önlemek için `null` sonucu 1 dakikalık kısa bir TTL ile önbelleğe alırız.)*
+
+### B. Aynı Anda Cache Güncelleme & Diğer Pod'lardan Cache Düşürme (161–167)
+
+157. **`[Aynı Anda Cache Güncelleme Yarışı]` "If two threads update the database and then overwrite Redis directly, a slower thread might overwrite Redis with older data and leave the cache stale."**
+     *(İki thread veritabanını güncelleyip ardından doğrudan Redis'in üzerine yazarsa, daha yavaş olan thread eski veriyi Redis'e yazıp önbelleği bayat bırakabilir.)*
+158. **`[Write-Update Yerine Cache Invalidation]` "To avoid race conditions when updating cache, we prefer the Cache-Aside pattern: after updating PostgreSQL, we delete (invalidate) the Redis key instead of overwriting it, so the next read fetches fresh data."**
+     *(Önbelleği güncellerken yarış durumlarından kaçınmak için Cache-Aside desenini tercih ederiz: PostgreSQL'i güncelledikten sonra Redis anahtarının üzerine yazmak yerine onu sileriz (invalidate); böylece sonraki okuma en güncel veriyi çeker.)*
+159. **`[Lua Script & Versiyon ile Güncelleme]` "When we must update Redis directly from events, we use a Lua script or check the version number so Redis only accepts the update if the incoming version is newer than the cached version."**
+     *(Redis'i event'ler üzerinden doğrudan güncellememiz gerektiğinde bir Lua scripti kullanırız veya versiyon numarasını kontrol ederiz; böylece Redis yalnızca gelen versiyon önbellektekinden daha yeniyse güncellemeyi kabul eder.)*
+160. **`[Diğer Örneklerden/Pod'lardan L1 Cache Düşürme - PROBLEM]` "When we run 10 Kubernetes pods with local in-memory cache (`IMemoryCache`) in front of Redis, updating a product on Pod 1 leaves stale data in the local RAM of the other 9 pods."**
+     *(Redis'in önünde yerel bellek önbelleği (`IMemoryCache`) kullanan 10 Kubernetes pod'u çalıştırdığımızda, Pod 1'de bir ürünü güncellemek diğer 9 pod'un yerel RAM'inde eski veri kalmasına neden olur.)*
+161. **`[Redis Pub/Sub Backplane ile Çözüm]` "To invalidate local in-memory caches across all running pods, we use Redis Pub/Sub as a backplane: when Pod 1 invalidates a key, it publishes an invalidation message, and all other pods immediately evict that key from their local `IMemoryCache`."**
+     *(Çalışan tüm pod'lardaki yerel bellek önbelleklerini temizlemek için arka kanal (backplane) olarak Redis Pub/Sub kullanırız: Pod 1 bir anahtarı sildiğinde bir geçersiz kılma mesajı yayınlar ve diğer tüm pod'lar o anahtarı kendi yerel `IMemoryCache` belleklerinden anında siler.)*
+162. **`[Kafka/Event ile Cache Senkronizasyonu]` "Alternatively, all pods can subscribe to a Kafka or RabbitMQ `ProductUpdated` topic to evict stale entries from their local memory cache in real time."**
+     *(Alternatif olarak, tüm pod'lar kendi yerel bellek önbelleklerindeki eski kayıtları gerçek zamanlı olarak silmek için bir Kafka veya RabbitMQ `ProductUpdated` başlığına abone olabilir.)*
+
+### C. Rate Limiting & API Gateway (168–176)
+
+163. **`[API Gateway Rolü]` "We put an API Gateway (like Kong, YARP, or Azure API Management) in front of our microservices to handle authentication, SSL termination, routing, and rate limiting in one central place."**
+     *(Kimlik doğrulama, SSL sonlandırma, yönlendirme ve hız sınırlandırma işlemlerini tek bir merkezi noktada yönetmek için mikroservislerimizin önüne Kong, YARP veya Azure API Management gibi bir API Gateway koyuyoruz.)*
+164. **`[Inbound Rate Limiting]` "We configure rate limiting at the API Gateway and in ASP.NET Core middleware per IP address or client token to protect our backend from traffic spikes and brute-force attacks."**
+     *(Backend'imizi ani trafik patlamalarından ve kaba kuvvet saldırılarından korumak için API Gateway'de ve ASP.NET Core middleware katmanında IP adresi veya istemci token'ı bazında hız sınırı yapılandırıyoruz.)*
+165. **`[Sliding Window vs Token Bucket]` "We use a Sliding Window or Token Bucket algorithm backed by Redis so our rate limits are enforced accurately across all backend instances."**
+     *(Hız sınırlarımızın tüm backend sunucuları genelinde doğru şekilde uygulanması için Redis destekli bir Sliding Window (Kayan Pencere) veya Token Bucket (Jeton Kovası) algoritması kullanıyoruz.)*
+166. **`[429 Too Many Requests & Retry-After]` "When a client exceeds the rate limit, we reject the request at the gateway with HTTP `429 Too Many Requests` and include a `Retry-After` header."**
+     *(Bir istemci hız sınırını aştığında, isteği daha gateway seviyesinde HTTP `429 Too Many Requests` ile reddediyor ve yanıt içine bir `Retry-After` başlığı ekliyoruz.)*
+167. **`[Outbound Rate Limiting / ERP Koruma]` "Rate limiting is also critical for outgoing calls: since ERPs like NetSuite have strict API concurrency limits, we throttle our queue workers so we never flood the ERP."**
+     *(Hız sınırlandırma giden çağrılar için de kritiktir: NetSuite gibi ERP'lerin katı API eşzamanlılık sınırları olduğundan, ERP'yi asla boğmamak için kuyruk işçilerimizin hızını dizginliyoruz.)*
+168. **`[API Gateway & Strangler Fig]` "When migrating from a legacy system or external agency code, the API Gateway lets us route migrated endpoints to our new .NET services while forwarding the rest to the old system."**
+     *(Eski bir sistemden veya ajans kodundan geçiş yaparken API Gateway, taşınmış uç noktaları yeni .NET servislerimize yönlendirmemizi, geri kalanları ise eski sisteme iletmemizi sağlar.)*
+169. **`[BFF - Backend for Frontend]` "We use the Backend-for-Frontend (BFF) pattern at the gateway layer to aggregate data from multiple services into a single response tailored for the React frontend or mobile app."**
+     *(Birden fazla servisten gelen veriyi React arayüzüne veya mobil uygulamaya özel tek bir yanıtta birleştirmek için gateway katmanında Backend-for-Frontend (BFF) desenini kullanıyoruz.)*
+
+### D. Structured Logging, Distributed Tracing & Observability (177–185)
+
+170. **`[Structured Logging vs Plain Text]` "Instead of writing plain-text logs that are hard to search, we use Serilog to write structured JSON logs with properties like `OrderId`, `Sku`, and `CustomerId`."**
+     *(Araması zor olan düz metin loglar yazmak yerine, `OrderId`, `Sku` ve `CustomerId` gibi alanlar içeren yapılandırılmış JSON logları yazmak için Serilog kullanıyoruz.)*
+171. **`[CorrelationId & W3C TraceContext]` "Every incoming request gets a `CorrelationId` (or OpenTelemetry W3C `traceparent` header) at the API Gateway, which is automatically attached to every log entry."**
+     *(Gelen her istek API Gateway'de bir `CorrelationId` (veya OpenTelemetry W3C `traceparent` başlığı) alır ve bu kimlik her log kaydına otomatik olarak eklenir.)*
+172. **`[HTTP & Queue Boyunca Trace Taşıma]` "When Service A calls Service B via HTTP or publishes a message to Kafka or SQS, we pass the `TraceId` in the headers so the distributed trace stays connected end-to-end."**
+     *(A Servisi B Servisini HTTP ile çağırdığında veya Kafka/SQS'e mesaj bıraktığında, dağıtık izlemenin uçtan uca bağlı kalması için `TraceId` değerini başlıklarda iletiyoruz.)*
+173. **`[Datadog / Elastic APM Waterfall]` "In Datadog or Elastic APM, distributed tracing gives us a waterfall view of the entire request, showing exactly how many milliseconds were spent in .NET, PostgreSQL, Redis, or an external API."**
+     *(Datadog veya Elastic APM'de dağıtık izleme bize tüm isteğin şelale (waterfall) görünümünü verir ve .NET, PostgreSQL, Redis veya bir dış API'de tam olarak kaç milisaniye harcandığını gösterir.)*
+174. **`[Log Levels & Gürültüyü Önleme]` "In production, we keep our default log level at `Information` or `Warning` and avoid logging full payloads on every request so we don't pay huge storage costs or slow down I/O."**
+     *(Canlı ortamda varsayılan log seviyemizi `Information` veya `Warning` düzeyinde tutarız ve yüksek depolama maliyetleri ödememek veya I/O'yu yavaşlatmamak için her istekte tüm veri gövdesini loglamaktan kaçınırız.)*
+175. **`[GDPR & PII Masking]` "To comply with GDPR and security standards, we mask sensitive PII data—like emails, phone numbers, tokens, and payment details—before writing logs to Elasticsearch or Datadog."**
+     *(GDPR ve güvenlik standartlarına uymak için e-posta, telefon numarası, token ve ödeme bilgileri gibi hassas kişisel verileri (PII) Elasticsearch veya Datadog'a yazmadan önce maskeliyoruz.)*
+176. **`[Sampling / Örnekleme]` "Under very high traffic (like 25 million packets a day at Drivee), we trace 100% of failed and slow requests, and use sampling for normal fast `200 OK` requests."**
+     *(Drivee'deki günde 25 milyon paket gibi çok yüksek trafik altında, hatalı ve yavaş isteklerin %100'ünü izleriz; normal ve hızlı `200 OK` istekleri içinse örnekleme (sampling) kullanırız.)*
+177. **`[Alerting on Symptoms]` "We set up proactive alerts on real symptoms—like a spike in `5xx` errors, Dead-Letter Queue growth, or ERP sync lag—so we can react before customers report a problem."**
+     *(Müşteriler bir sorun bildirmeden önce müdahale edebilmek için `5xx` hatalarında artış, Dead-Letter Queue büyümesi veya ERP senkronizasyon gecikmesi gibi gerçek belirtiler üzerine proaktif alarmlar kuruyoruz.)*
+
 
 
