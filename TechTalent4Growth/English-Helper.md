@@ -1,6 +1,6 @@
-# 🗣️ Senior .NET Developer — Mülakat ve Günlük Mühendislik İçin 120 Altın İngilizce Cümle (`English-Helper.md`)
+# 🗣️ Senior .NET Developer — Mülakat ve Günlük Mühendislik İçin 150 Altın İngilizce Cümle (`English-Helper.md`)
 
-> **Amaç:** Bu dosya, bir Senior .NET Backend geliştiricinin teknik mülakatlarda ve uluslararası (remote) ekiplerde günlük olarak en çok kurduğu **120 tam, doğal ve akıcı İngilizce cümleyi** içerir.
+> **Amaç:** Bu dosya, bir Senior .NET Backend geliştiricinin teknik mülakatlarda ve uluslararası (remote) ekiplerde günlük olarak en çok kurduğu **150 tam, doğal ve akıcı İngilizce cümleyi** içerir.
 > **Nasıl Çalışmalısın?** Tek tek kelime ezberlemek yerine her gün 1-2 bölümü (20–40 cümleyi) **sesli olarak** oku. Kalın yazılmış anahtar kelimelerin cümle içinde nasıl kullanıldığına dikkat et.
 
 ---
@@ -13,6 +13,7 @@
 4. [Bölüm 4: Design Patterns, SOLID, DDD & Clean Architecture (Cümle 61–80)](#4-bölüm-4-design-patterns-solid-ddd--clean-architecture-cümle-6180)
 5. [Bölüm 5: DevOps, CI/CD, Docker, Observability & Test (Cümle 81–100)](#5-bölüm-5-devops-cicd-docker-observability--test-cümle-81100)
 6. [Bölüm 6: Günlük Takım İletişimi, Standup, PR Review & Mülakat Kalıpları (Cümle 101–120)](#6-bölüm-6-günlük-takım-iletişimi-standup-pr-review--mülakat-kalıpları-cümle-101120)
+7. [Bölüm 7: Temel C# & .NET Mülakat Soruları İçin Hazır Cevap Cümleleri (Cümle 121–150)](#7-bölüm-7-temel-c--net-mülakat-soruları-için-hazır-cevap-cümleleri-cümle-121150)
 
 ---
 
@@ -283,4 +284,80 @@
      *(İşin içinde NetSuite ve BigCommerce gibi birden fazla üçüncü parti sistem varken yerel geliştirmeyi ve uçtan uca testleri şu an nasıl yürütüyorsunuz?)*
 120. **"Does that explanation cover what you were looking for, or would you like me to dive deeper into the database or queue side?"**
      *(Bu açıklama aradığınız noktayı karşılıyor mu, yoksa veritabanı veya kuyruk tarafında daha derine inmemi ister misiniz?)*
+
+---
+
+## 7. Bölüm 7: Temel C# & .NET Mülakat Soruları İçin Hazır Cevap Cümleleri (Cümle 121–150)
+
+> 💡 **Bu bölüm**, mülakatlarda en sık sorulan **klasik C# / .NET temel sorularına** tek cümlede net ve kıdemli yanıt vermeni sağlar. Her cümlenin başında hangi sorunun cevabı olduğu parantez içinde yazılmıştır.
+
+### Bellek Yönetimi, Value/Reference Types & Garbage Collector (121–130)
+
+121. **`[Struct vs Class]` "A `class` is a reference type allocated on the heap, whereas a `struct` is a value type that holds its data directly and avoids GC overhead for small, short-lived data."**
+     *(`class` heap'te ayrılan bir referans tipidir; `struct` ise verisini doğrudan tutan ve küçük, kısa ömürlü veriler için GC yükünden kaçınan bir değer tipidir.)*
+122. **`[Stack vs Heap Tuzak Sorusu]` "A `struct` lives on the stack when declared as a local variable, but if it is a field inside a `class` or inside a `List<T>`, it is stored inline on the heap."**
+     *(Bir `struct` yerel değişken olarak tanımlandığında stack'te yaşar; ancak bir `class` içinde alan ise veya `List<T>` içindeyse heap üzerinde bitişik olarak saklanır.)*
+123. **`[Boxing & Unboxing]` "Boxing happens when a value type is cast to `object` or an interface, which allocates a new wrapper object on the heap and hurts performance."**
+     *(Boxing, bir değer tipinin `object` veya bir arayüze dönüştürülmesiyle oluşur; bu işlem heap'te yeni bir sarmalayıcı nesne üretir ve performansı düşürür.)*
+124. **`[in / ref readonly]` "When passing a large `struct` to a method, we use the `in` keyword to pass it by read-only reference instead of copying all its bytes."**
+     *(Büyük bir `struct` yapısını bir metoda geçirirken tüm byte'larını kopyalamak yerine salt okunur referansla geçirmek için `in` anahtar kelimesini kullanırız.)*
+125. **`[Class vs Record]` "While classes compare equality by memory reference, `record` types compare equality by value and are immutable by default, making them ideal for DTOs and Value Objects."**
+     *(Sınıflar eşitliği bellek referansına göre karşılaştırırken, `record` tipleri eşitliği değere göre karşılaştırır ve varsayılan olarak değiştirilemezdir; bu da onları DTO ve Value Object'ler için ideal yapar.)*
+126. **`[GC Generations]` "The .NET Garbage Collector uses three generations: Gen 0 for short-lived objects, Gen 1 as a buffer, and Gen 2 for long-lived objects like singletons or static caches."**
+     *(.NET Garbage Collector üç nesil kullanır: kısa ömürlü nesneler için Gen 0, tampon olarak Gen 1 ve singleton veya statik önbellekler gibi uzun ömürlü nesneler için Gen 2.)*
+127. **`[Large Object Heap - LOH]` "Any object larger than 85 kilobytes, such as a huge byte array or JSON string, goes directly to the Large Object Heap (LOH), which is expensive to collect."**
+     *(Büyük bir byte dizisi veya JSON metni gibi 85 kilobayttan büyük her nesne doğrudan Large Object Heap'e (LOH) gider ve buranın temizlenmesi maliyetlidir.)*
+128. **`[IDisposable & using]` "The Garbage Collector only frees managed memory; for unmanaged resources like DB connections, streams, or sockets, we implement `IDisposable` and wrap them in a `using` statement."**
+     *(Garbage Collector yalnızca yönetilen belleği temizler; DB bağlantıları, stream'ler veya soketler gibi yönetilmeyen kaynaklar için `IDisposable` uygular ve bunları `using` bloğuna alırız.)*
+129. **`[String vs StringBuilder]` "Because strings in C# are immutable, concatenating strings inside a loop allocates a new string in memory every time; we use `StringBuilder` instead."**
+     *(C#'ta string'ler değiştirilemez olduğu için döngü içinde string birleştirmek her seferinde bellekte yeni bir string oluşturur; bunun yerine `StringBuilder` kullanırız.)*
+130. **`[Span<T> & ReadOnlySpan<T>]` "When parsing large strings or byte buffers, we use `ReadOnlySpan<char>` to slice the memory without allocating new substrings on the heap."**
+     *(Büyük metinleri veya byte dizilerini ayrıştırırken heap'te yeni alt string'ler oluşturmadan belleği dilimlemek için `ReadOnlySpan<char>` kullanırız.)*
+
+### OOP, Dil Özellikleri & Koleksiyonlar (131–140)
+
+131. **`[Interface vs Abstract Class]` "An `abstract class` shares common base code and state among closely related classes, while an `interface` defines a behavior contract that any class can implement."**
+     *(Bir `abstract class` birbiriyle yakından ilişkili sınıflar arasında ortak temel kodu ve durumu paylaşır; `interface` ise herhangi bir sınıfın uygulayabileceği bir davranış sözleşmesi tanımlar.)*
+132. **`[const vs readonly]` "A `const` value is baked into the assembly at compile time, while a `readonly` field is assigned at runtime inside the constructor, such as an injected service."**
+     *(Bir `const` değeri derleme zamanında koda gömülürken, `readonly` alan çalışma zamanında constructor içinde—örneğin enjekte edilen bir servis gibi—atanır.)*
+133. **`[sealed Class]` "We mark classes as `sealed` when they are not meant to be inherited, which also helps the JIT compiler optimize method calls."**
+     *(Miras alınması planlanmayan sınıfları `sealed` olarak işaretleriz; bu aynı zamanda JIT derleyicisinin metot çağrılarını optimize etmesine yardımcı olur.)*
+134. **`[throw vs throw ex]` "Inside a `catch` block, we always write `throw;` instead of `throw ex;` because `throw ex;` resets the stack trace and hides the original line where the error happened."**
+     *(Bir `catch` bloğu içinde her zaman `throw ex;` yerine `throw;` yazarız; çünkü `throw ex;` stack trace'i sıfırlar ve hatanın gerçekleştiği asıl satırı gizler.)*
+135. **`[Equals & GetHashCode]` "If you override `Equals()` on a custom type, you must also override `GetHashCode()` so the object works properly as a key in a `Dictionary` or `HashSet`."**
+     *(Özel bir tipte `Equals()` metodunu ezerseniz, nesnenin `Dictionary` veya `HashSet` içinde anahtar olarak düzgün çalışması için `GetHashCode()` metodunu da ezmeniz gerekir.)*
+136. **`[List vs Dictionary vs HashSet]` "Checking `.Contains()` on a `List<T>` is an $O(N)$ linear scan, whereas looking up an item in a `HashSet<T>` or `Dictionary<K,V>` is an $O(1)$ constant-time operation."**
+     *(Bir `List<T>` üzerinde `.Contains()` kontrolü yapmak $O(N)$ doğrusal taramadır; oysa `HashSet<T>` veya `Dictionary<K,V>` içinde eleman aramak $O(1)$ sabit zamanlı bir işlemdir.)*
+137. **`[Thread-Safe Collections]` "Standard collections like `List` and `Dictionary` are not thread-safe; when multiple threads access a shared cache in memory, we use `ConcurrentDictionary`."**
+     *(`List` ve `Dictionary` gibi standart koleksiyonlar thread-safe değildir; birden fazla thread bellekteki ortak bir önbelleğe eriştiğinde `ConcurrentDictionary` kullanırız.)*
+138. **`[LINQ Deferred Execution]` "LINQ queries like `.Where()` and `.Select()` use deferred execution—they only execute when you iterate over them with `foreach` or call `.ToList()` or `.FirstOrDefault()`."**
+     *(`.Where()` ve `.Select()` gibi LINQ sorguları ertelenmiş çalıştırma (deferred execution) kullanır; yalnızca `foreach` ile dönüldüğünde veya `.ToList()` / `.FirstOrDefault()` çağrıldığında çalışırlar.)*
+139. **`[yield return]` "Using `yield return` allows a method to return items lazily one by one without loading the entire collection into memory at once."**
+     *(`yield return` kullanmak, bir metodun tüm koleksiyonu tek seferde belleğe yüklemeden elemanları tek tek ve tembel (lazy) olarak döndürmesini sağlar.)*
+140. **`[Generics vs Reflection]` "Generics give us compile-time type safety and avoid boxing, while Reflection inspects types dynamically at runtime and is much slower unless cached."**
+     *(Generics bize derleme zamanı tip güvenliği sağlar ve boxing'i önler; Reflection ise tipleri çalışma zamanında dinamik olarak inceler ve önbelleğe alınmadıkça çok daha yavaştır.)*
+
+### Async İç Yapısı, ASP.NET Core & EF Core Temelleri (141–150)
+
+141. **`[How async/await works]` "Under the hood, `async/await` does not create new threads; the compiler turns the method into a state machine and releases the thread back to the pool while waiting for I/O."**
+     *(Kaputun altında `async/await` yeni thread oluşturmaz; derleyici metodu bir durum makinesine (state machine) dönüştürür ve I/O beklerken thread'i havuza geri bırakır.)*
+142. **`[Task vs ValueTask]` "`Task` is a reference type that allocates on the heap, while `ValueTask` is a struct that avoids heap allocation when the method frequently completes synchronously."**
+     *(`Task` heap'te yer ayıran bir referans tipidir; `ValueTask` ise metodun sık sık senkron olarak tamamlandığı durumlarda heap tahsisini önleyen bir struct'tır.)*
+143. **`[Task.WhenAll vs await in loop]` "When we have independent async calls that can run in parallel, we start them together and use `Task.WhenAll` instead of awaiting them one by one in a loop."**
+     *(Paralel çalışabilecek bağımsız asenkron çağrılarımız olduğunda, döngü içinde tek tek `await` etmek yerine hepsini başlatıp `Task.WhenAll` kullanırız.)*
+144. **`[ConfigureAwait(false)]` "In ASP.NET Core, there is no `SynchronizationContext`, so `ConfigureAwait(false)` is mostly needed only when writing shared NuGet libraries."**
+     *(ASP.NET Core'da `SynchronizationContext` yoktur; bu yüzden `ConfigureAwait(false)` çoğunlukla yalnızca ortak NuGet kütüphaneleri yazarken gereklidir.)*
+145. **`[Middleware vs Filter]` "Middleware runs for every HTTP request in the ASP.NET Core pipeline, while Action Filters run inside the MVC context and have access to controller and action metadata."**
+     *(Middleware, ASP.NET Core hattındaki her HTTP isteği için çalışır; Action Filter'lar ise MVC bağlamı içinde çalışır ve controller/action bilgilerine erişebilir.)*
+146. **`[FirstOrDefault vs SingleOrDefault]` "`FirstOrDefault` returns the first matching row (`LIMIT 1`), while `SingleOrDefault` fetches up to two rows and throws an exception if there is more than one match."**
+     *(`FirstOrDefault` eşleşen ilk satırı (`LIMIT 1`) döner; `SingleOrDefault` ise en fazla iki satır çeker ve birden fazla eşleşme varsa exception fırlatır.)*
+147. **`[IMemoryCache vs IDistributedCache]` "`IMemoryCache` stores data in a single server's RAM, whereas `IDistributedCache` (backed by Redis) shares cached data consistently across all running pods."**
+     *(`IMemoryCache` veriyi tek bir sunucunun RAM'inde tutarken, Redis destekli `IDistributedCache` önbellek verisini çalışan tüm pod'lar arasında tutarlı şekilde paylaşır.)*
+148. **`[Options: IOptions vs IOptionsSnapshot]` "`IOptions<T>` is a singleton read once at startup, whereas `IOptionsSnapshot<T>` is scoped and reloads configuration changes per request without restarting the app."**
+     *(`IOptions<T>` başlangıçta bir kez okunan bir singleton'dır; `IOptionsSnapshot<T>` ise scoped'dur ve uygulamayı yeniden başlatmadan istek başına konfigürasyon değişikliklerini yeniden yükler.)*
+149. **`[Authentication vs Authorization]` "Authentication verifies *who* the user is (for example via a JWT token), while Authorization checks *what* that user is allowed to do via roles or policies."**
+     *(Authentication kullanıcının *kim* olduğunu (örneğin JWT token ile) doğrular; Authorization ise o kullanıcının roller veya politikalar üzerinden *neyi* yapmaya yetkili olduğunu kontrol eder.)*
+150. **`[Garbage Collector vs Memory Leak in .NET]` "Even with a Garbage Collector, memory leaks still happen in .NET if you keep references in static lists, forget to unsubscribe from events, or fail to dispose unmanaged resources."**
+     *(Garbage Collector olsa bile, statik listelerde referans tutarsanız, event aboneliklerini kaldırmayı unutursanız veya yönetilmeyen kaynakları dispose etmezseniz .NET'te yine bellek sızıntısı (memory leak) yaşanır.)*
+
 
