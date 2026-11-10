@@ -1,6 +1,6 @@
-# 🗣️ Senior .NET Developer — Mülakat ve Günlük Mühendislik İçin 185 Altın İngilizce Cümle (`English-Helper.md`)
+# 🗣️ Senior .NET Developer — Mülakat ve Günlük Mühendislik İçin 205 Altın İngilizce Cümle (`English-Helper.md`)
 
-> **Amaç:** Bu dosya, bir Senior .NET Backend geliştiricinin teknik mülakatlarda ve uluslararası (remote) ekiplerde günlük olarak en çok kurduğu **185 tam, doğal ve akıcı İngilizce cümleyi** içerir.
+> **Amaç:** Bu dosya, bir Senior .NET Backend geliştiricinin teknik mülakatlarda ve uluslararası (remote) ekiplerde günlük olarak en çok kurduğu **205 tam, doğal ve akıcı İngilizce cümleyi** içerir.
 > **Nasıl Çalışmalısın?** Tek tek kelime ezberlemek yerine her gün 1-2 bölümü (20–40 cümleyi) **sesli olarak** oku. Kalın yazılmış anahtar kelimelerin cümle içinde nasıl kullanıldığına dikkat et.
 
 ---
@@ -14,7 +14,8 @@
 5. [Bölüm 5: DevOps, CI/CD, Docker, Observability & Test (Cümle 81–100)](#5-bölüm-5-devops-cicd-docker-observability--test-cümle-81100)
 6. [Bölüm 6: Günlük Takım İletişimi, Standup, PR Review & Mülakat Kalıpları (Cümle 101–120)](#6-bölüm-6-günlük-takım-iletişimi-standup-pr-review--mülakat-kalıpları-cümle-101120)
 7. [Bölüm 7: Temel C# & .NET Mülakat Soruları İçin Hazır Cevap Cümleleri (Cümle 121–150)](#7-bölüm-7-temel-c--net-mülakat-soruları-için-hazır-cevap-cümleleri-cümle-121150)
-8. [Bölüm 8: Cache Storm/Stampede, Multi-Pod Invalidation, Rate Limiting, Gateway & Tracing (Cümle 151–185)](#8-bölüm-8-cache-stormstampede-multi-pod-invalidation-rate-limiting-gateway--tracing-cümle-151185)
+8. [Bölüm 8: Cache Storm/Stampede, Multi-Pod Invalidation, Rate Limiting, Gateway & Tracing (Cümle 151–177)](#8-bölüm-8-cache-stormstampede-multi-pod-invalidation-rate-limiting-gateway--tracing-cümle-151177)
+9. [Bölüm 9: E-Ticaret Sipariş Süreçleri — Sepet, Ödeme, Stok Rezervasyonu, State Machine & İade (Cümle 178–205)](#9-bölüm-9-e-ticaret-sipariş-süreçleri--sepet-ödeme-stok-rezervasyonu-state-machine--iade-cümle-178205)
 
 ---
 
@@ -363,7 +364,7 @@
 
 ---
 
-## 8. Bölüm 8: Cache Storm/Stampede, Multi-Pod Invalidation, Rate Limiting, Gateway & Tracing (Cümle 151–185)
+## 8. Bölüm 8: Cache Storm/Stampede, Multi-Pod Invalidation, Rate Limiting, Gateway & Tracing (Cümle 151–177)
 
 ### A. Redis Cache Expiration, Cache Storm (Stampede) & Jitter (151–160)
 
@@ -430,6 +431,76 @@
      *(Drivee'deki günde 25 milyon paket gibi çok yüksek trafik altında, hatalı ve yavaş isteklerin %100'ünü izleriz; normal ve hızlı `200 OK` istekleri içinse örnekleme (sampling) kullanırız.)*
 177. **`[Alerting on Symptoms]` "We set up proactive alerts on real symptoms—like a spike in `5xx` errors, Dead-Letter Queue growth, or ERP sync lag—so we can react before customers report a problem."**
      *(Müşteriler bir sorun bildirmeden önce müdahale edebilmek için `5xx` hatalarında artış, Dead-Letter Queue büyümesi veya ERP senkronizasyon gecikmesi gibi gerçek belirtiler üzerine proaktif alarmlar kuruyoruz.)*
+
+---
+
+## 9. Bölüm 9: E-Ticaret Sipariş Süreçleri — Sepet, Ödeme, Stok Rezervasyonu, State Machine & İade (Cümle 178–205)
+
+### A. Sepet (Basket) vs. Sipariş (Order), Fiyat Snapshot & Stok Rezervasyon TTL (178–185)
+
+178. **`[Basket vs Order Ayrımı]` "A basket is a mutable, temporary shopping session where prices can still change, whereas an order is an immutable financial and legal record created at checkout."**
+     *(Sepet, fiyatların hâlâ değişebildiği geçici ve düzenlenebilir bir alışveriş oturumudur; sipariş ise ödeme anında oluşturulan değiştirilemez bir finansal ve yasal kayıttır.)*
+179. **`[Fiyat & Vergi Snapshot'ı]` "When an order is placed, we take an immutable snapshot of the product name, unit price, applied discount, currency, and VAT rate so future catalog changes never alter historical orders."**
+     *(Sipariş verildiğinde ürün adının, birim fiyatın, uygulanan indirimin, para biriminin ve KDV oranının değiştirilemez bir kopyasını (snapshot) alırız; böylece gelecekteki katalog değişiklikleri geçmiş siparişleri asla bozmaz.)*
+180. **`[Stok Ne Zaman Rezerve Edilir?]` "We don't reserve stock when an item is just added to the cart because that would allow bots or window-shoppers to lock up all our inventory."**
+     *(Ürün sadece sepete eklendiğinde stok rezerve etmeyiz; çünkü bu durum botların veya sadece gezinen kullanıcıların tüm stoğumuzu kilitlemesine yol açar.)*
+181. **`[Checkout Anında TTL'li Rezervasyon]` "Instead, we create a temporary stock reservation with a 15-minute TTL when the customer starts checkout and is redirected to the payment provider."**
+     *(Bunun yerine, müşteri ödeme adımını başlatıp ödeme sağlayıcıya yönlendirildiğinde 15 dakikalık süresi (TTL) olan geçici bir stok rezervasyonu oluştururuz.)*
+182. **`[Terk Edilen Ödeme / Expired Reservation]` "If the customer abandons the payment page and we don't receive a payment webhook within 15 minutes, a background job automatically expires the reservation and returns the stock to the sellable pool."**
+     *(Müşteri ödeme sayfasını terk ederse ve 15 dakika içinde ödeme bildirimi alamazsak, arka planda çalışan bir iş rezervasyonu otomatik olarak sonlandırır ve stoğu tekrar satılabilir havuza iade eder.)*
+183. **`[Kupon Kullanım Limiti & Concurrency]` "To prevent a single-use coupon from being used twice at the same millisecond, we increment the coupon usage count atomically in the database with `WHERE used_count < max_uses`."**
+     *(Tek kullanımlık bir kuponun aynı milisaniyede iki kez kullanılmasını önlemek için kupon kullanım sayacını veritabanında `WHERE used_count < max_uses` koşuluyla atomik olarak artırırız.)*
+184. **`[Set / Bundle Ürün Stoğu - DIY Hardware]` "For bundle or kit products—like a pergola kit made of brackets and screws—the available stock of the bundle is calculated dynamically from the lowest available component in stock."**
+     *(Pergola bağlantı demirleri ve vidalardan oluşan bir set gibi paket ürünlerde, paketin satılabilir stoğu bileşenlerden stokta en az bulunanına göre dinamik olarak hesaplanır.)*
+185. **`[12 Ülke KDV & Çoklu Dil]` "When selling across 12 European countries, our order payload explicitly stores the destination country's VAT rate and local currency so NetSuite ERP can generate compliant invoices."**
+     *(12 Avrupa ülkesinde satış yaparken, NetSuite ERP'nin mevzuata uygun fatura kesebilmesi için sipariş verimizde teslimat ülkesinin KDV oranını ve yerel para birimini açıkça saklarız.)*
+
+### B. Ödeme (PSP) Entegrasyonu, Webhook Güvenliği & Uyumsuzluk Çözümü (186–192)
+
+186. **`[Tarayıcı Yönlendirmesine Güvenmeme]` "In payment integrations, we never rely on the user's browser redirect to confirm payment because the user might close the browser tab right after paying."**
+     *(Ödeme entegrasyonlarında ödemeyi onaylamak için asla kullanıcının tarayıcı yönlendirmesine güvenmeyiz; çünkü kullanıcı ödeme yaptıktan hemen sonra tarayıcı sekmesini kapatabilir.)*
+187. **`[PSP Webhook = Doğruluk Kaynağı]` "The asynchronous webhook from the Payment Service Provider (PSP) is our reliable trigger to mark the order as `Paid` and release it to the ERP."**
+     *(Ödeme Hizmet Sağlayıcısından (PSP) gelen asenkron webhook, siparişi `Ödendi` olarak işaretlemek ve ERP'ye göndermek için kullandığımız güvenilir tetikleyicidir.)*
+188. **`[Webhook İmza Doğrulaması]` "Before processing any payment webhook, we verify the cryptographic HMAC signature in the header to make sure the request genuinely came from the PSP."**
+     *(Herhangi bir ödeme webhook'unu işlemeden önce, isteğin gerçekten ödeme sağlayıcıdan geldiğinden emin olmak için başlıktaki kriptografik HMAC imzasını doğrularız.)*
+189. **`[Idempotent Webhook İşleme]` "Payment providers often send the same `PaymentSucceeded` webhook multiple times, so we deduplicate webhooks by `PaymentTransactionId` in PostgreSQL."**
+     *(Ödeme sağlayıcılar aynı `PaymentSucceeded` webhook'unu sık sık birden fazla kez gönderir; bu yüzden webhook'ları PostgreSQL'de `PaymentTransactionId` üzerinden tekilleştiririz.)*
+190. **`[Authorize vs Capture]` "Depending on the payment method, we either capture the payment immediately at checkout or authorize the amount first and capture it when the warehouse ships the order."**
+     *(Ödeme yöntemine bağlı olarak, tutarı ya ödeme anında hemen tahsil ederiz (capture) ya da önce provizyon (authorize) alıp depo siparişi kargoladığında tahsilatı gerçekleştiririz.)*
+191. **`[Ödeme Alındı Ama Stok Bitti - Geç Webhook]` "In the rare edge case where a late payment webhook arrives after the stock reservation expired and the last item was sold, we automatically trigger a refund or flag the order for priority backorder fulfillment."**
+     *(Stok rezervasyon süresi dolup son ürün satıldıktan sonra gecikmiş bir ödeme webhook'unun geldiği nadir uç durumda, otomatik olarak iade (refund) başlatırız veya siparişi öncelikli tedarik için işaretleriz.)*
+192. **`[PSP Mutabakatı / Settlement Reconciliation]` "Every night, we reconcile captured PSP transactions against our `Paid` orders in PostgreSQL and NetSuite so no payment ever gets stuck silently."**
+     *(Her gece, tahsil edilen PSP işlemlerini PostgreSQL ve NetSuite'teki `Ödendi` siparişlerimizle karşılaştırıp mutabakat yaparız; böylece hiçbir ödeme sessizce askıda kalmaz.)*
+
+### C. Sipariş Durum Makinesi (Order State Machine), Kargo & İade Lojistiği (193–205)
+
+193. **`[Order State Machine]` "We model the order lifecycle as a strict state machine (`PendingPayment` → `Paid` → `SentToErp` → `Picking` → `Shipped` → `Delivered`) so invalid transitions are rejected in the domain layer."**
+     *(Sipariş yaşam döngüsünü katı bir durum makinesi olarak modelleriz; böylece geçersiz durum geçişleri daha domain katmanında reddedilir.)*
+194. **`[İptal Kuralı / Invariant]` "For example, if a customer requests a cancellation while the order is already in `Picking` or `Shipped` state in the warehouse, our state machine blocks direct cancellation and requires a return flow instead."**
+     *(Örneğin müşteri, sipariş depoda `Toplanıyor` veya `Kargolandı` durumundayken iptal talep ederse durum makinemiz doğrudan iptali engeller ve bunun yerine iade akışı başlatılmasını zorunlu kılar.)*
+195. **`[Canonical Order Model - Webshop & Pazaryerleri]` "Whether an order comes from BigCommerce or an external marketplace via Channable, our Anti-Corruption Layer maps it into a single Canonical Order Model before sending it to the core pipeline."**
+     *(Bir sipariş ister BigCommerce'den ister Channable üzerinden bir dış pazaryerinden gelsin, Anti-Corruption Layer katmanımız onu ana boru hattına göndermeden önce tek bir Ortak Sipariş Modeline dönüştürür.)*
+196. **`[Pazaryeri Sipariş Farkı]` "Marketplace orders arrive already paid on the marketplace side, so our state machine skips the payment capture step and moves directly to stock reservation and ERP synchronization."**
+     *(Pazaryeri siparişleri pazaryeri tarafında ödemesi alınmış olarak gelir; bu nedenle durum makinemiz ödeme tahsilat adımını atlar ve doğrudan stok rezervasyonu ile ERP senkronizasyonuna geçer.)*
+197. **`[Split Shipment / Kısmi Sevkiyat]` "If a customer orders five items and they are shipped in two separate parcels, our data model tracks shipment status per order line rather than just a single status on the order header."**
+     *(Müşteri beş ürün sipariş eder ve bunlar iki ayrı paket halinde kargolanırsa, veri modelimiz kargo durumunu sadece sipariş başlığında tek bir durum olarak değil, sipariş satırı (order line) bazında takip eder.)*
+198. **`[Short Pick / Depoda Hasarlı Ürün]` "If the warehouse worker finds during picking that the last item on the shelf is damaged, the ERP sends a short-pick event to our integration layer to re-allocate that line or trigger a partial refund."**
+     *(Depo çalışanı ürün toplama sırasında raftaki son ürünün hasarlı olduğunu fark ederse, ERP entegrasyon katmanımıza o satırı başka depoya atamak veya kısmi para iadesi başlatmak için bir 'eksik toplama' (short-pick) olayı gönderir.)*
+199. **`[Kuponlu Siparişte Kısmi İade / Discount Proration]` "When a coupon discount is applied to a basket, we prorate (distribute) the discount amount across each order line proportionally; that way, if the customer returns just one item later, we know the exact net amount to refund."**
+     *(Bir sepete kupon indirimi uygulandığında indirim tutarını her bir sipariş satırına orantılı olarak dağıtırız (proration); böylece müşteri daha sonra tek bir ürünü iade ederse iade edeceğimiz net tutarı kuruşu kuruşuna biliriz.)*
+200. **`[RMA - İade Süreci & Stok Güncellemesi]` "When a customer initiates a return (RMA), we don't add the item back to sellable stock immediately; we wait until the warehouse inspects the returned parcel and confirms the item is undamaged in the ERP."**
+     *(Müşteri bir iade (RMA) başlattığında ürünü hemen satılabilir stoğa geri eklemeyiz; deponun iade paketi inceleyip ürünün sağlam olduğunu ERP'de onaylamasını bekleriz.)*
+201. **`[İade Onayı → PSP Refund & Fatura]` "Once the warehouse approves the return in NetSuite, our integration layer receives an event, triggers an idempotent refund call to the PSP, and generates a credit note."**
+     *(Depo NetSuite üzerinde iadeyi onayladığında, entegrasyon katmanımız bir event alır, ödeme sağlayıcıya (PSP) idempotent bir para iadesi çağrısı tetikler ve iade faturası (credit note) oluşturur.)*
+202. **`[Kargo Takip & Klaviyo Bildirimleri]` "When the warehouse generates a shipping label, our .NET layer syncs the tracking number back to BigCommerce andChannable, and publishes an event to Klaviyo so the customer receives their tracking email."**
+     *(Depo kargo barkodunu oluşturduğunda, .NET katmanımız kargo takip numarasını BigCommerce ve Channable'a geri bildirir ve müşterinin takip e-postasını alması için Klaviyo'ya bir event yayınlar.)*
+203. **`[Sipariş Sıralaması / Out-of-Order Events]` "Sometimes an `OrderShipped` webhook from the warehouse can arrive milliseconds before the `OrderPacked` event; our consumer handles out-of-order events gracefully by checking state priority."**
+     *(Bazen depodan gelen `Sipariş Kargolandı` bildirimi, `Sipariş Paketlendi` olayından milisaniyeler önce gelebilir; consumer servisimiz durum önceliğini kontrol ederek sırası karışmış olayları sorunsuz yönetir.)*
+204. **`[PIM -> Webshop Ürün Senkronizasyonu]` "When product specifications or translations are updated in Akeneo PIM, our integration layer validates the required fields before syncing them to BigCommerce so incomplete products never go live."**
+     *(Akeneo PIM'de ürün özellikleri veya çeviriler güncellendiğinde, eksik ürünlerin asla yayına çıkmaması için entegrasyon katmanımız bunları BigCommerce'e senkronize etmeden önce zorunlu alanları doğrular.)*
+205. **`[Audit Trail / Sipariş Tarihçesi]` "For customer support visibility, we keep an append-only `order_status_history` table in PostgreSQL that logs every state change, timestamp, and system trigger for every order."**
+     *(Müşteri hizmetlerinin süreci net görebilmesi için PostgreSQL'de her siparişin tüm durum değişikliklerini, zamanını ve hangi sistem tarafından tetiklendiğini kaydeden 'sadece eklenir' (append-only) bir `order_status_history` tablosu tutarız.)*
+
 
 
 

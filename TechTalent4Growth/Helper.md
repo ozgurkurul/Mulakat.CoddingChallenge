@@ -28,6 +28,7 @@
 10. [System Design & Dağıtık Mimari Kelime ve Cümle Sözlüğü](#10-system-design--dağıtık-mimari-kelime-ve-cümle-sözlüğü)
 11. [Konuşurken Cümleleri Bağlayan "Senior" Geçiş Kalıpları (Connectors)](#11-konuşurken-cümleleri-bağlayan-senior-geçiş-kalıpları-connectors)
 12. [Alan 6 (Ek): Cache Storm, Multi-Pod Cache Düşürme, Rate Limiting, Gateway & Tracing](#12-alan-6-ek-cache-storm-multi-pod-cache-düşürme-rate-limiting-gateway--tracing)
+13. [Alan 7 (E-Ticaret Sipariş Süreçleri): Stok Rezervasyon TTL, PSP Webhook, State Machine, Kısmi İade & Pazaryeri](#13-alan-7-e-ticaret-sipariş-süreçleri-stok-rezervasyon-ttl-psp-webhook-state-machine-kısmi-iade--pazaryeri)
 
 ---
 
@@ -582,6 +583,115 @@ Mülakatta düşünmek için zaman kazanmak ve konuşmanı çok doğal bir **Sen
 - ✅ **Result:**
   - **EN:** *"As a result, we can search by `OrderId` or `CorrelationId` and pinpoint the exact root cause or latency bottleneck across all systems in seconds."*
   - *(TR: Sonuç olarak `OrderId` veya `CorrelationId` ile arama yapıp tüm sistemler arasındaki kök nedeni veya gecikme darboğazını saniyeler içinde nokta atışı bulabiliyoruz.)*
+
+---
+
+## 13. Alan 7 (E-Ticaret Sipariş Süreçleri): Stok Rezervasyon TTL, PSP Webhook, State Machine, Kısmi İade & Pazaryeri
+
+> Wovar gibi çok kanallı (BigCommerce + Channable + NetSuite ERP + PSP) bir e-ticaret şirketinde **Sipariş Yaşam Döngüsü (Order Lifecycle)** üzerine gelebilecek en kritik 6 iş/mimari senaryosu:
+
+---
+
+### 🎯 Senaryo 7A: Stoku Ne Zaman Rezerve Ederiz ve Ödemesi Tamamlanmayan (Abandoned) Siparişlerin Stoğunu Nasıl Serbest Bırakırız?
+
+- 🔴 **Problem:**
+  - **EN:** *"If we reserve stock as soon as a user adds an item to the cart, bots or window-shoppers will lock up all our inventory. On the other hand, if we wait until the payment webhook arrives without reserving stock at checkout, two users can pay for the last item at the same time."*
+  - *(TR: Kullanıcı ürünü sepete ekler eklemez stok rezerve edersek botlar veya sadece gezinenler tüm stoğumuzu kilitler. Öte yandan, ödeme adımında stok ayırmayıp ödeme webhook'u gelene kadar beklersek iki kullanıcı aynı anda son ürünün parasını ödeyebilir.)*
+- 🛠️ **Solution:**
+  - **EN:** *"We create a **temporary stock reservation with a 15-minute TTL** at the moment the customer clicks 'Pay' and is redirected to the Payment Service Provider (PSP). If the payment succeeds within 15 minutes, the reservation becomes permanent (`Confirmed`). If the user abandons the payment page, a background job (Hangfire) automatically expires the reservation after 15 minutes and releases the stock back to the sellable pool."*
+  - *(TR: Müşteri 'Öde'ye basıp ödeme sağlayıcıya (PSP) yönlendirildiği anda **15 dakika süreli (TTL) geçici bir stok rezervasyonu** oluştururuz. 15 dakika içinde ödeme başarılı olursa rezervasyon kalıcı (`Confirmed`) olur. Kullanıcı ödeme sayfasını terk ederse arka plan işi (Hangfire) 15 dakika sonra rezervasyonu düşürür ve stoğu satılabilir havuza iade eder.)*
+- 🧠 **Reason:**
+  - **EN:** *"The reason is that this protects customers who are actively paying from overselling, without allowing abandoned checkouts to lock inventory forever."*
+  - *(TR: Bunun nedeni, terk edilen ödemelerin stoğu sonsuza kadar kilitlemesine izin vermeden, aktif olarak ödeme yapan müşterileri fazla satıştan (overselling) korumaktır.)*
+- ✅ **Result:**
+  - **EN:** *"As a result, stock stays accurate and abandoned carts automatically return their items to sellable inventory within 15 minutes."*
+  - *(TR: Sonuç olarak stok doğru kalır ve terk edilen sepetler ürünlerini 15 dakika içinde otomatik olarak satılabilir stoğa geri döndürür.)*
+
+---
+
+### 🎯 Senaryo 7B: Müşteri Ödemeyi Yaptı Ama Tarayıcıyı Kapattı (veya PSP Webhook Gecikti) — Sipariş Nasıl Kurtarılır?
+
+- 🔴 **Problem:**
+  - **EN:** *"After completing 3D Secure or bank payment on the PSP page, a customer might close their browser tab or lose internet before being redirected back to our webshop. If we relied on the browser redirect, we would take the customer's money without creating their order."*
+  - *(TR: Müşteri PSP sayfasında 3D Secure veya banka ödemesini tamamladıktan sonra webshop'a geri yönlendirilmeden önce tarayıcı sekmesini kapatabilir veya interneti kopabilir. Tarayıcı yönlendirmesine güvenseydik müşterinin parasını alır ama siparişini oluşturamazdık.)*
+- 🛠️ **Solution:**
+  - **EN:** *"First, we create the order in `PendingPayment` state (with an immutable price and VAT snapshot) **before** redirecting the user to the PSP. Second, we rely on the asynchronous **server-to-server PSP Webhook** (verified with an HMAC signature and deduplicated by `PaymentTransactionId`) to transition the order to `Paid` and push it to NetSuite ERP."*
+  - *(TR: İlk olarak, kullanıcıyı PSP'ye yönlendirmeden **önce** siparişi (değiştirilemez fiyat ve KDV snapshot'ı ile) `PendingPayment` durumunda oluştururuz. İkinci olarak, siparişi `Paid` durumuna geçirmek ve NetSuite ERP'ye göndermek için asenkron **sunucudan sunucuya PSP Webhook** bildirimini (HMAC imzası doğrulanmış ve `PaymentTransactionId` ile tekilleştirilmiş olarak) esas alırız.)*
+- 🧠 **Reason:**
+  - **EN:** *"Because server-to-server webhooks are retried automatically by the payment provider even if the customer's device goes offline."*
+  - *(TR: Çünkü müşterinin cihazı çevrimdışı olsa bile sunucudan sunucuya webhook'lar ödeme sağlayıcı tarafından otomatik olarak tekrar denenir.)*
+- ✅ **Result:**
+  - **EN:** *"As a result, no paid order is ever lost even when the user closes their browser immediately after paying."*
+  - *(TR: Sonuç olarak kullanıcı ödemeden hemen sonra tarayıcısını kapatsa bile ödemesi alınmış hiçbir sipariş kaybolmaz.)*
+
+---
+
+### 🎯 Senaryo 7C: Sipariş Durum Makinesi (Order State Machine) ve Geçersiz Geçişleri Engelleme
+
+- 🔴 **Problem:**
+  - **EN:** *"In a distributed environment, events from the webshop, PSP, and warehouse ERP can arrive concurrently or out of order. For example, a customer might click 'Cancel Order' at the exact moment the warehouse packs and ships the parcel."*
+  - *(TR: Dağıtık bir ortamda webshop, PSP ve depo ERP'sinden gelen olaylar eşzamanlı veya sırasız gelebilir. Örneğin müşteri, tam deponun koliyi paketleyip kargoya verdiği anda 'Siparişi İptal Et' butonuna basabilir.)*
+- 🛠️ **Solution:**
+  - **EN:** *"We enforce a strict **Order State Machine** inside the `Order` Aggregate Root (`PendingPayment` → `Paid` → `AllocatedToErp` → `Picking` → `Shipped` → `Delivered`) combined with optimistic concurrency (`RowVersion`). Once the ERP transitions the order to `Picking` or `Shipped`, direct cancellation is blocked by domain rules and the customer is guided to the Return (RMA) flow instead."*
+  - *(TR: `Order` Aggregate Root içinde iyimser kilitleme (`RowVersion`) ile birleştirilmiş katı bir **Sipariş Durum Makinesi** uyguluyoruz. ERP siparişi `Toplanıyor` veya `Kargolandı` durumuna geçirdiği anda doğrudan iptal domain kurallarıyla engellenir ve müşteri bunun yerine İade (RMA) akışına yönlendirilir.)*
+- 🧠 **Reason:**
+  - **EN:** *"Because you cannot refund an order immediately if the physical box has already left the warehouse."*
+  - *(TR: Çünkü fiziksel koli depodan çoktan çıktıysa siparişi anında iptal edip parasını iade edemezsiniz.)*
+- ✅ **Result:**
+  - **EN:** *"As a result, order states remain consistent between the webshop and the warehouse, and we never refund an order that is already on the delivery truck."*
+  - *(TR: Sonuç olarak sipariş durumları webshop ile depo arasında tutarlı kalır ve kargo aracına yüklenmiş bir siparişi yanlışlıkla iptal etmeyiz.)*
+
+---
+
+### 🎯 Senaryo 7D: İndirimli / Kuponlu Siparişte Kısmi İade (Discount Proration & Partial Refund)
+
+- 🔴 **Problem:**
+  - **EN:** *"Suppose a customer buys two items (one for €60 and one for €40 = €100 total) using a €20 discount coupon, so they pay €80. If they later return only the €60 item, how much money should we refund?"*
+  - *(TR: Diyelim ki bir müşteri €20 indirim kuponu kullanarak iki ürün aldı (biri €60, diğeri €40 = toplam €100) ve €80 ödedi. Daha sonra sadece €60'lık ürünü iade ederse ne kadar para iade etmeliyiz?)*
+- 🛠️ **Solution:**
+  - **EN:** *"At checkout, our pricing engine **prorates (distributes)** the basket-level discount across each order line proportionally and saves the exact `NetPaidAmount` on every line. In this example, the €60 item gets 60% of the €20 discount (€12), so its net paid price is stored as **€48**, and the €40 item is stored as **€32**."*
+  - *(TR: Ödeme anında fiyatlandırma motorumuz sepet seviyesindeki indirimi her bir sipariş satırına orantılı olarak **dağıtır (proration)** ve her satırda ödenen net tutarı (`NetPaidAmount`) kaydeder. Bu örnekte €60'lık ürün €20 indirimin %60'ını (€12) alır, yani net ödenen fiyatı **€48** olarak, €40'lık ürün ise **€32** olarak kaydedilir.)*
+- 🧠 **Reason:**
+  - **EN:** *"If we refunded the full €60 list price, the customer would abuse the coupon; if we subtracted the whole €20 coupon from the first returned item, it would be unfair to the customer."*
+  - *(TR: €60 liste fiyatının tamamını iade etseydik müşteri kuponu suistimal edebilirdi; €20 kuponun tamamını ilk iade edilen üründen düşseydik müşteriye haksızlık olurdu.)*
+- ✅ **Result:**
+  - **EN:** *"As a result, partial returns and ERP credit notes are calculated down to the exact cent without manual accounting fixes."*
+  - *(TR: Sonuç olarak kısmi iadeler ve ERP iade faturaları manuel muhasebe düzeltmelerine gerek kalmadan kuruşu kuruşuna hesaplanır.)*
+
+---
+
+### 🎯 Senaryo 7E: Kısmi Sevkiyat (Split Shipment) ve İade Lojistiği (RMA → ERP → PSP Refund)
+
+- 🔴 **Problem:**
+  - **EN:** *"In DIY hardware e-commerce (like Wovar), a single order can be shipped in multiple parcels (split shipment), or a customer might return only part of their order. Also, refunding money before the warehouse inspects the returned hardware causes financial loss."*
+  - *(TR: Wovar gibi yapı market e-ticaretinde tek bir sipariş birden fazla paketle gönderilebilir (kısmi sevkiyat) veya müşteri siparişinin sadece bir kısmını iade edebilir. Ayrıca depo iade edilen ürünü kontrol etmeden para iadesi yapmak finansal kayba yol açar.)*
+- 🛠️ **Solution:**
+  - **EN:** *"We track fulfillment and return statuses at the **Order Line level** rather than just a single status on the Order header. When a customer creates a return (RMA), the item is not added back to sellable stock immediately. Only after the warehouse inspects the parcel and confirms the return in NetSuite ERP does our .NET integration layer add the healthy stock back and trigger an idempotent partial refund on the PSP."*
+  - *(TR: Sevkiyat ve iade durumlarını sadece sipariş başlığında tek bir durum olarak değil, **Sipariş Satırı (Order Line) seviyesinde** takip ederiz. Müşteri bir iade (RMA) oluşturduğunda ürün hemen satılabilir stoğa eklenmez. Yalnızca depo paketi inceleyip iadeyi NetSuite ERP'de onayladıktan sonra .NET entegrasyon katmanımız sağlam stoğu geri ekler ve PSP üzerinde idempotent bir kısmi para iadesi başlatır.)*
+- 🧠 **Reason:**
+  - **EN:** *"Because damaged returns should go to quarantine stock, not sellable stock, and refunds must match the exact inspected quantities."*
+  - *(TR: Çünkü hasarlı iadeler satılabilir stoğa değil karantina stoğuna gitmelidir ve para iadeleri kontrol edilen gerçek adetlerle eşleşmelidir.)*
+- ✅ **Result:**
+  - **EN:** *"As a result, inventory accuracy and financial refunds stay 100% aligned between the warehouse, NetSuite, and the payment provider."*
+  - *(TR: Sonuç olarak stok doğruluğu ve finansal iadeler depo, NetSuite ve ödeme sağlayıcı arasında %100 uyumlu kalır.)*
+
+---
+
+### 🎯 Senaryo 7F: Pazaryeri (Channable) + Webshop (BigCommerce) Ortak Sipariş Modeli & Paket (Bundle) Ürünler
+
+- 🔴 **Problem:**
+  - **EN:** *"Orders coming from BigCommerce and external marketplaces via Channable have completely different JSON structures and payment flows. Also, DIY stores often sell 'Bundle/Kit' products (like a pergola set made of 4 brackets and 32 screws) that share physical stock with individual items."*
+  - *(TR: BigCommerce'den ve Channable üzerinden dış pazaryerlerinden gelen siparişlerin JSON yapıları ve ödeme akışları tamamen farklıdır. Ayrıca DIY mağazaları sık sık tekil ürünlerle aynı fiziksel stoğu paylaşan 'Set/Paket' ürünler—örneğin 4 bağlantı demiri ve 32 vidadan oluşan pergola seti—satar.)*
+- 🛠️ **Solution:**
+  - **EN:** *"First, we use an **Anti-Corruption Layer (ACL)** per channel to map both BigCommerce and Channable orders into a single **Canonical Order Model** before sending them to the core ERP sync pipeline. Second, for bundle products, our integration layer expands the bundle SKU into its child component SKUs when reserving stock and calculates the bundle's sellable stock from the lowest available component."*
+  - *(TR: İlk olarak, hem BigCommerce hem de Channable siparişlerini ana ERP boru hattına göndermeden önce tek bir **Ortak Sipariş Modeline (Canonical Order Model)** dönüştürmek için kanal başına bir **Anti-Corruption Layer (ACL)** kullanırız. İkinci olarak, paket ürünlerde entegrasyon katmanımız stok ayırırken paket SKU'sunu alt bileşen SKU'larına açar ve paketin satılabilir stoğunu en az bulunan bileşene göre hesaplar.)*
+- 🧠 **Reason:**
+  - **EN:** *"This keeps our core .NET order and NetSuite ERP logic completely independent of how many sales channels we add in the future."*
+  - *(TR: Bu yaklaşım, gelecekte kaç tane satış kanalı eklersek ekleyelim çekirdek .NET sipariş ve NetSuite ERP mantığımızı tamamen bağımsız tutar.)*
+- ✅ **Result:**
+  - **EN:** *"As a result, adding a new marketplace takes minimal effort, and component stock never goes out of sync when a bundle is sold."*
+  - *(TR: Sonuç olarak yeni bir pazaryeri eklemek minimum efor gerektirir ve bir set satıldığında alt parça stokları asla şaşmaz.)*
+
 
 
 
