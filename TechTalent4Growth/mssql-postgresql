@@ -1,0 +1,212 @@
+# 🐘 MS SQL Server Bilen .NET Geliştirici İçin PostgreSQL Köprü ve Mülakat Rehberi
+
+> **Amaç:** Uzun yıllar **MS SQL Server** kullanmış bir Senior .NET geliştiricinin, **PostgreSQL** kullanan bir şirketin (Wovar) mülakatında **DBA detaylarında boğulmadan**, bir yazılım geliştiricinin bilmesi gereken tüm karşılıkları, mimari farkları, **EF Core / Dapper / CQRS / Outbox Pattern** entegrasyonunu ve gelebilecek soruları net şekilde bilmesini sağlamak.
+
+---
+
+## 📑 İçindekiler
+
+1. [Bölüm 1: İsim Farklılığı Olup Aynı İşi Yapanlar (MS SQL ↔ PostgreSQL Sözlüğü)](#1-bölüm-1-isim-farklılığı-olup-aynı-işi-yapanlar-ms-sql--postgresql-sözlüğü)
+2. [Bölüm 2: Yazılımcının Bilmesi Gereken 5 Büyük Mimari Fark (Ne Yapabiliyor / Ne Yapamıyor?)](#2-bölüm-2-yazılımcının-bilmesi-gereken-5-büyük-mimari-fark-ne-yapabiliyor--ne-yapamıyor)
+3. [Bölüm 3: .NET Dünyasında PostgreSQL — EF Core, Dapper, CQRS ve Outbox/Inbox](#3-bölüm-3-net-dünyasında-postgresql--ef-core-dapper-cqrs-ve-outboxinbox)
+4. [Bölüm 4: Mülakatta Gelebilecek 6 Kritik Soru ve İngilizce/Türkçe Cevapları](#4-bölüm-4-mülakatta-gelebilecek-6-kritik-soru-ve-ingilizcetürkçe-cevapları)
+
+---
+
+## 1. Bölüm 1: İsim Farklılığı Olup Aynı İşi Yapanlar (MS SQL ↔ PostgreSQL Sözlüğü)
+
+> ⚠️ **Mülakat İpucu:** Mülakatta konuşurken yanlışlıkla MS SQL'e özgü `NVARCHAR`, `ROWVERSION`, `WITH (NOLOCK)` veya `SELECT TOP 10` ifadelerini kullanmak yerine aşağıdaki **PostgreSQL karşılıklarını** kullanırsan karşı taraf senin PostgreSQL'e tamamen hakim olduğunu anlar.
+
+| Kavram / İşlem | 🟦 MS SQL Server (Bildiğin) | 🐘 PostgreSQL (Mülakatta Söyleyeceğin) | Yazılımcı İçin Kritik Not |
+|---|---|---|---|
+| **EF Core NuGet Paketi** | `Microsoft.EntityFrameworkCore.SqlServer` | `Npgsql.EntityFrameworkCore.PostgreSQL` | .NET'te standart sürücü **`Npgsql`**'dir. |
+| **Otomatik Artan ID** | `INT IDENTITY(1,1)` | `GENERATED ALWAYS AS IDENTITY` *(veya `SERIAL` / `BIGSERIAL`)* | Modern Postgres'te `IDENTITY` veya `UUID` tercih edilir. |
+| **GUID / UUID** | `UNIQUEIDENTIFIER` + `NEWID()` / `NEWSEQUENTIALID()` | `UUID` + `gen_random_uuid()` *(veya C# `Guid.CreateVersion7()`)* | B-Tree index parçalanmasını önlemek için sıralı **UUIDv7** harikadır. |
+| **Metin / String** | `NVARCHAR(250)` / `NVARCHAR(MAX)` | `VARCHAR(250)` veya doğrudan `TEXT` | Postgres'te `NVARCHAR` **yoktur**! Her şey doğuştan UTF-8'dir. `VARCHAR` ile `TEXT` arasında hız farkı yoktur. |
+| **Para / Miktar** | `DECIMAL(18,2)` | `NUMERIC(18,2)` *(veya `DECIMAL(18,2)`)* | İkisi de aynıdır; finansal veride asla `float/real` kullanılmaz. |
+| **Boolean** | `BIT` (`0` / `1`) | `BOOLEAN` (`true` / `false`) | Postgres'te gerçek `true/false` tipi vardır. |
+| **Tarih ve Saat (UTC)** | `DATETIME2` / `DATETIMEOFFSET` + `GETUTCDATE()` | `TIMESTAMPTZ` (`timestamp with time zone`) + `NOW()` | Postgres'te **her zaman `timestamptz`** kullanılır. |
+| **JSON Saklama** | `NVARCHAR(MAX)` + `JSON_VALUE()` | **`JSONB`** (Binary JSON) | Postgres'in en büyük kozudur; `JSONB` içine **GIN Index** atılıp milisaniyede sorgulanır. |
+| **İlk N Kaydı Çekme** | `SELECT TOP 10 * FROM Orders` | `SELECT * FROM orders LIMIT 10` | Sayfalama: `LIMIT 10 OFFSET 20` (veya Keyset pagination). |
+| **Null Kontrolü** | `ISNULL(Price, 0)` | `COALESCE(price, 0)` | `COALESCE` standart SQL'dir, her ikisinde de çalışır. |
+| **Eklenen/Güncellenen Satırı Dönme** | `OUTPUT INSERTED.Id` / `SCOPE_IDENTITY()` | `INSERT INTO ... RETURNING id, created_at` | `RETURNING` çok daha temizdir; `UPDATE` ve `DELETE` sonunda da çalışır! |
+| **Upsert (Yoksa Ekle, Varsa Güncelle/Geç)** | `MERGE INTO ...` *(çok hantal)* | `INSERT ... ON CONFLICT (key) DO NOTHING` *(veya `DO UPDATE`)* | Idempotency ve Inbox tabloları için Postgres'teki en pratik özelliktir. |
+| **Optimistic Locking (Versiyon)** | `ROWVERSION` / `TIMESTAMP` (`byte[]`) | Sistem kolonu **`xmin`** (`uint`) veya kendi `version BIGINT` kolonun | EF Core'da `.UseXminAsConcurrencyToken()` ile tek satırda açılır. |
+| **Pessimistic Row Lock (Satır Kilidi)** | `SELECT * FROM Stock WITH (UPDLOCK, ROWLOCK)` | `SELECT * FROM stock FOR UPDATE` | Kuyruk/Outbox okurken: **`FOR UPDATE SKIP LOCKED`**. |
+| **Sorgu Planı Analizi** | `SET STATISTICS IO ON` + Actual Execution Plan | **`EXPLAIN (ANALYZE, BUFFERS)`** | Yavaş sorgu sorulduğunda ilk söyleyeceğin komut budur. |
+| **Harf Duyarlılığı (Case Sensitivity)** | Varsayılan **Duyarsız** (`'abc' = 'ABC'` → True) | Varsayılan **Duyarlı** (`'abc' = 'ABC'` → **False!**) | Postgres'te harf duyarsız arama için `ILIKE` veya `LOWER()` kullanılır. |
+| **Tablo/Kolon İsimlendirme** | `PascalCase` (`[OrderLines]`, `[CreatedAt]`) | `snake_case` (`order_lines`, `created_at`) | Postgres tırnaksız büyük harfleri küçüğe çevirir; EF Core'da `UseSnakeCaseNamingConvention()` kullanılır. |
+
+---
+
+## 2. Bölüm 2: Yazılımcının Bilmesi Gereken 5 Büyük Mimari Fark (Ne Yapabiliyor / Ne Yapamıyor?)
+
+### Fark 1: PostgreSQL'de `WITH (NOLOCK)` Yoktur ve Gerek de Yoktur! (MVCC Farkı)
+- **MS SQL'de Nasıldı?** Varsayılan ayarlarda (eğer `RCSI` özel olarak açılmadıysa) birisi tabloya `UPDATE` yaparken başka birinin `SELECT` sorgusu kilitlenir ve bekler. Bu yüzden yazılımcılar (kirli veri okuma pahasına) `WITH (NOLOCK)` yazar.
+- **PostgreSQL'de Nasıl?** PostgreSQL doğuştan **MVCC (Multi-Version Concurrency Control)** kullanır. Bir satır güncellenirken okuma yapanlara satırın işlem öncesi temiz görüntüsü (snapshot) anında dönülür.
+- **Mülakat Cümlesi:** *"In PostgreSQL, thanks to MVCC, **readers never block writers and writers never block readers**, so we never need dirty reads like `NOLOCK`."*
+
+### Fark 2: Clustered Index vs. Heap Tablo Yapısı
+- **MS SQL'de Nasıldı?** Primary Key varsayılan olarak **Clustered Index**'tir; yani tablonun kendisi diske Primary Key sırasıyla fiziksel olarak dizilir.
+- **PostgreSQL'de Nasıl?** PostgreSQL'de tüm tablolar fiziksel olarak **Heap** (sırasız veri yığını) olarak tutulur ve Primary Key dahil **tüm indeksler Secondary B-Tree Index**'tir.
+- **Yazılımcı İçin Anlamı:** Sadece indeksin içindeki kolonları okuduğun bir sorguda tabloya (Heap'e) gitmemek için (Index-Only Scan) sık okunan kolonları `CREATE INDEX idx_orders ON orders (customer_id) INCLUDE (status, total_amount)` şeklinde **Covering Index (`INCLUDE`)** olarak ekleyebilirsin (MS SQL ile aynı mantık!).
+
+### Fark 3: Sık `UPDATE` Edilen Tablolarda MVCC ve Dead Tuples (Autovacuum)
+- **PostgreSQL Ne Yapar?** PostgreSQL'de bir satıra `UPDATE` attığında, mevcut satırı yerinde değiştirmez; eski satırı "ölü" (*dead tuple*) olarak işaretler ve **yeni bir satır versiyonu** ekler. Arka plandaki **Autovacuum** işlemi bu ölü satırları temizler.
+- **Yazılımcı İçin Anlamı:** Saniyede binlerce kez `UPDATE` gören bir tabloda (örneğin `stock_balances` veya `outbox`) gereksiz yere 10 tane indeks açmamalısın ve değişmeyen kolonları boşuna `UPDATE` etmemelisin.
+
+### Fark 4: PostgreSQL'in Yazılımcıyı Kurtaran 4 Süper Gücü (MS SQL'de Olmayan / Zor Olan)
+1. **`INSERT ... ON CONFLICT DO NOTHING / DO UPDATE`:** MS SQL'deki hantal ve deadlock çıkaran `MERGE` komutunun aksine, tek satırda atomik Idempotency ve Upsert sağlar.
+2. **`FOR UPDATE SKIP LOCKED`:** 5 tane .NET Worker pod'un aynı anda `outbox_messages` tablosundan işlenmemiş mesajları çekerken kilitli satırları atlayıp boşta olanları almasını sağlar; pod'lar birbirini hiç bekletmez!
+3. **`JSONB` + `GIN Index`:** E-ticarette (ör. Akeneo PIM'den gelen ürünlerde) her ürün kategorisinin farklı özellikleri vardır (vidanın çapı, boyanın rengi, kapı kolunun malzemesi). Bunları 50 ayrı tabloya bölmek yerine `attributes JSONB` kolonunda tutup üzerine **GIN Index** atarak hem ilişkisel (ACID) hem NoSQL (MongoDB gibi) hızında filtreleme yapabilirsin!
+4. **`CREATE INDEX CONCURRENTLY`:** Canlıda milyonlarca satırlık `orders` tablosuna indeks eklerken tabloyu yazma işlemlerine kilitlemeden indeks oluşturur.
+
+### Fark 5: `DateTime` ve Timezone Kuralı (`Npgsql` Özel Davranışı)
+- MS SQL `DateTime.Now` veya `DateTime.UtcNow` ayrımına kızmaz, ne verirsen yazar.
+- PostgreSQL'in .NET sürücüsü (`Npgsql`), `timestamptz` kolonuna `DateTimeKind.Local` veya `Unspecified` (`DateTime.Now`) göndermene **izin vermez ve exception fırlatır**!
+- **Yazılımcı Kuralı:** C# tarafında her zaman **`DateTimeOffset.UtcNow`** veya **`DateTime.UtcNow`** kullanılır.
+
+---
+
+## 3. Bölüm 3: .NET Dünyasında PostgreSQL — EF Core, Dapper, CQRS ve Outbox/Inbox
+
+### 3.1. EF Core + PostgreSQL'de Bilmen Gereken 4 Konfigürasyon
+
+```csharp
+// 1. Program.cs — Snake Case isimlendirme (OrderId -> order_id) ve Retry
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(connectionString, npgsql =>
+        npgsql.EnableRetryOnFailure(maxRetryCount: 3))
+           .UseSnakeCaseNamingConvention());
+
+// 2. OnModelCreating — Optimistic Concurrency (MS SQL RowVersion karşılığı: xmin)
+modelBuilder.Entity<StockItem>()
+    .UseXminAsConcurrencyToken(); // Postgres'in gizli 'xmin' sistem kolonunu otomatik kontrol eder!
+
+// 3. OnModelCreating — JSONB Kolonu (Örn: PIM Ürün Özellikleri veya Outbox Payload)
+modelBuilder.Entity<Product>()
+    .Property(p => p.Attributes)
+    .HasColumnType("jsonb");
+
+// 4. OnModelCreating — Partial Index (Sadece işlenmemiş Outbox mesajları için)
+modelBuilder.Entity<OutboxMessage>()
+    .HasIndex(o => o.CreatedAt)
+    .HasFilter("processed_at IS NULL");
+```
+
+---
+
+### 3.2. CQRS Mimarisi: Write Tarafında EF Core + Read Tarafında Dapper
+
+E-ticaret sistemlerinde **CQRS (Command Query Responsibility Segregation)** kullanırken EF Core ve Dapper'ı aynı PostgreSQL veritabanı üzerinde şu şekilde birleştiririz:
+
+- **Command (Write) Tarafı → EF Core:**
+  - Sipariş oluşturma (`CreateOrderCommand`), stok düşme, durum güncelleme gibi **iş kurallarının (Domain Invariants), Optimistic Concurrency'nin (`xmin` / `Version`) ve Outbox mesajlarının** olduğu yerde **EF Core** kullanılır.
+  - Çünkü Aggregate Root içindeki tüm değişiklikleri ve `outbox_messages` kaydını tek bir `await dbContext.SaveChangesAsync(ct)` ile atomik transaction olarak yazar.
+- **Query (Read) Tarafı → Dapper (veya `AsNoTracking`):**
+  - Sipariş listeleme, ürün/stok sorgulama veya ERP mutabakat raporları gibi yüksek hızlı okumalarda **Dapper** ile doğrudan SQL çalıştırılır.
+  - **Dapper + Postgres İpucu:** Postgres kolonları `snake_case` (`order_id`), C# DTO'ları `PascalCase` (`OrderId`) olduğu için başlangıçta şu tek satır açılır:
+    `Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;`
+
+---
+
+### 3.3. Outbox, Inbox ve Idempotency İçin PostgreSQL Sorgu Kalıpları
+
+Mülakatta *"PostgreSQL'de bunu nasıl yazdınız?"* diye sorulursa söyleyeceğin **3 altın SQL kalıbı**:
+
+#### 1) Inbox / Idempotent Consumer (`ON CONFLICT DO NOTHING`)
+```sql
+-- Mesajı daha önce işledik mi kontrolü ve kaydı TEK atomik komutta:
+INSERT INTO processed_events (event_id, processed_at)
+VALUES (@EventId, NOW())
+ON CONFLICT (event_id) DO NOTHING
+RETURNING event_id;
+-- Eğer C# tarafında dönen değer NULL ise: Bu mesaj zaten işlenmiş, işlemi atla (skip)!
+```
+
+#### 2) Outbox Polling Worker (`FOR UPDATE SKIP LOCKED`)
+*(Debezium CDC kullanılmayan veya yedek polling worker kullanılan senaryolarda)*
+```sql
+-- 10 farklı pod aynı anda çalıştığında birbirini bloklamadan farklı 50'şer mesajı alır:
+SELECT id, event_type, payload
+FROM outbox_messages
+WHERE processed_at IS NULL
+ORDER BY created_at ASC
+LIMIT 50
+FOR UPDATE SKIP LOCKED;
+```
+
+#### 3) Atomik Stok Düşme + Güncel Stoğu Tek Seferde Dönme (`RETURNING`)
+```sql
+-- MS SQL'deki OUTPUT INSERTED yerine Postgres RETURNING:
+UPDATE stock_balances
+SET reserved_qty = reserved_qty + @Quantity,
+    updated_at = NOW()
+WHERE sku = @Sku
+  AND (physical_qty - reserved_qty) >= @Quantity
+RETURNING (physical_qty - reserved_qty) AS remaining_available_stock;
+```
+
+---
+
+## 4. Bölüm 4: Mülakatta Gelebilecek 6 Kritik Soru ve İngilizce/Türkçe Cevapları
+
+### ❓ Soru 1: *"You have worked extensively with MS SQL Server and also used PostgreSQL at Yemeksepeti and Drivee. From a .NET developer's perspective, what are the key differences you pay attention to?"*
+*(Uzun yıllar MS SQL Server kullandın, Yemeksepeti ve Drivee'de ise PostgreSQL ile çalıştın. Bir .NET geliştirici gözüyle dikkat ettiğin temel farklar nelerdir?)*
+
+- **🎤 İngilizce Cevap:**
+  > *"From a .NET developer's perspective, moving between MS SQL Server and PostgreSQL is very smooth with EF Core and Dapper, but there are four practical differences I always pay attention to:*
+  > *1. **Concurrency (MVCC):** In PostgreSQL, readers never block writers and writers never block readers by default, so we never need hints like `NOLOCK`.*
+  > *2. **Upserts and Queue Locking:** PostgreSQL has amazing developer features like `INSERT ... ON CONFLICT DO NOTHING` for idempotency and `FOR UPDATE SKIP LOCKED` for queue/outbox workers, which are much cleaner than `MERGE` or lock hints in SQL Server.*
+  > *3. **Data Types & JSONB:** In PostgreSQL, strings are UTF-8 by default, we always use `timestamptz` with UTC dates in `Npgsql`, and `JSONB` with GIN indexes allows us to query dynamic JSON attributes at high speed.*
+  > *4. **Case Sensitivity & Naming:** PostgreSQL is case-sensitive for string comparisons and prefers `snake_case` identifiers, so we enable `UseSnakeCaseNamingConvention()` in EF Core."*
+- *(🇹🇷 **Türkçe Özeti:** 4 pratik farka dikkat ederim: 1. **MVCC** sayesinde okuyanlar yazanları bloklamaz, `NOLOCK` gerekmez. 2. Idempotency için `ON CONFLICT DO NOTHING` ve kuyruk/outbox için `FOR UPDATE SKIP LOCKED` çok temizdir. 3. Tarihlerde `timestamptz` (UTC) ve dinamik verilerde GIN indeksli `JSONB` kullanırım. 4. Metin aramaları harf duyarlıdır ve isimlendirmede `snake_case` kullanılır.)*
+
+---
+
+### ❓ Soru 2: *"How do you implement Optimistic Concurrency in EF Core with PostgreSQL compared to MS SQL Server?"*
+*(MS SQL Server'a kıyasla PostgreSQL ve EF Core'da Optimistic Concurrency'yi nasıl uygularsın?)*
+
+- **🎤 İngilizce Cevap:**
+  > *"In MS SQL Server, we usually add a `RowVersion` (`byte[]`) column. In PostgreSQL, every table already has a built-in system column called **`xmin`** that tracks the transaction ID of the last update. In EF Core, we simply call `.UseXminAsConcurrencyToken()` (or use an explicit `version` integer column). When `SaveChangesAsync()` runs, EF Core includes `WHERE xmin = @oldXmin` in the `UPDATE` statement. If another transaction modified the row in between, zero rows are affected, EF Core throws a `DbUpdateConcurrencyException`, and we handle the conflict safely."*
+- *(🇹🇷 **Türkçe Özeti:** MS SQL'de `RowVersion` (`byte[]`) kullanırız. PostgreSQL'de ise her tabloda son güncelleyen transaction ID'sini tutan yerleşik bir **`xmin`** sistem kolonu vardır. EF Core'da `.UseXminAsConcurrencyToken()` çağırırız (veya açık bir `version` kolonu kullanırız). Kayıt sırasında `WHERE xmin = @eski` kontrol edilir; başkası değiştirdiyse `DbUpdateConcurrencyException` fırlatılır.)*
+
+---
+
+### ❓ Soru 3: *"How do you combine EF Core, Dapper, and CQRS when working with PostgreSQL?"*
+*(PostgreSQL ile çalışırken EF Core, Dapper ve CQRS'i nasıl birlikte kullanırsın?)*
+
+- **🎤 İngilizce Cevap:**
+  > *"In a CQRS architecture, I use the right tool for each side:*
+  > *On the **Command (Write) side**, I use **EF Core** because we load the Aggregate Root, enforce domain invariants, check optimistic concurrency, and use a `SaveChangesInterceptor` to write the domain events into the `outbox_messages` table in a single ACID transaction.*
+  > *On the **Query (Read) side**, we don't need change tracking or domain entities. For simple queries I use EF Core with `.AsNoTracking()` and `.Select()` projections, and for complex or high-throughput queries I use **Dapper** with raw SQL (and `MatchNamesWithUnderscores = true`) to map results directly to response DTOs."*
+- *(🇹🇷 **Türkçe Özeti:** Yazma (Command) tarafında **EF Core** kullanırım çünkü Aggregate Root kurallarını, iyimser kilitlemeyi ve `SaveChangesInterceptor` ile Outbox mesajlarını tek bir ACID transaction'da kaydetmeyi çok temiz yönetir. Okuma (Query) tarafında ise Change Tracker'a gerek olmadığı için basit sorgularda `.AsNoTracking()`, karmaşık ve yüksek trafikli sorgularda ise **Dapper** ile ham SQL kullanırım.)*
+
+---
+
+### ❓ Soru 4: *"How do you implement the Transactional Outbox and Inbox patterns in PostgreSQL?"*
+*(PostgreSQL'de Transactional Outbox ve Inbox desenlerini nasıl uygularsın?)*
+
+- **🎤 İngilizce Cevap:**
+  > *"For the **Outbox pattern**, when a command handler updates a business table in PostgreSQL, our EF Core interceptor inserts the outgoing event (with a unique `event_id` UUID and `JSONB` payload) into the `outbox_messages` table within the **same database transaction**. From there, either **Debezium CDC** reads PostgreSQL's WAL log and streams the event to Kafka, or a background worker polls unprocessed rows using `FOR UPDATE SKIP LOCKED` with a partial index on `WHERE processed_at IS NULL`.*
+  > *For the **Inbox pattern** on the consumer side, we run `INSERT INTO processed_events (event_id) VALUES (@id) ON CONFLICT DO NOTHING` inside the consumer's database transaction so duplicate deliveries are ignored atomically."*
+- *(🇹🇷 **Türkçe Özeti:** Outbox için EF Core interceptor'ımız iş tablosu güncellemesiyle aynı transaction'da `outbox_messages` tablosuna (`JSONB` payload ile) kayıt atar. Oradan ya **Debezium CDC** WAL logunu okuyup Kafka'ya basar ya da worker'ımız `WHERE processed_at IS NULL` parçalı indeksi ve `FOR UPDATE SKIP LOCKED` ile mesajları çeker. Consumer tarafında ise **Inbox** için `INSERT ... ON CONFLICT DO NOTHING` kullanarak çift gelen mesajları atomik olarak yok sayarız.)*
+
+---
+
+### ❓ Soru 5: *"In an e-commerce platform using Akeneo PIM and PostgreSQL, different product categories have very different attributes (e.g., screw length vs. door handle material). How would you store and query that in PostgreSQL?"*
+*(Akeneo PIM ve PostgreSQL kullanan bir e-ticaret platformunda farklı ürün kategorilerinin çok farklı özellikleri vardır. Bunu PostgreSQL'de nasıl saklar ve sorgularsın?)*
+
+- **🎤 İngilizce Cevap:**
+  > *"In MS SQL Server, people often use complex EAV (Entity-Attribute-Value) tables which require many slow joins. In PostgreSQL, the best approach is a hybrid model: we keep common fields like `id`, `sku`, `price`, and `brand_id` as standard relational columns, and store category-specific dynamic attributes in a **`JSONB` column** with a **GIN index**. That gives us full ACID transactions alongside super fast filtering on dynamic product attributes without complex joins."*
+- *(🇹🇷 **Türkçe Özeti:** MS SQL'de genelde çok fazla JOIN gerektiren karmaşık EAV tabloları kullanılır. PostgreSQL'de ise hibrit model en iyisidir: `id`, `sku`, `price` gibi ortak alanları normal kolonlarda tutar, kategoriye göre değişen dinamik ürün özelliklerini ise **GIN indeksli bir `JSONB` kolonunda** saklarız. Böylece JOIN maliyeti olmadan çok hızlı filtreleme yaparız.)*
+
+---
+
+### ❓ Soru 6: *"If a query becomes slow in PostgreSQL or you need to add an index to a large production table like `orders`, how do you handle it as a developer?"*
+*(PostgreSQL'de bir sorgu yavaşlarsa veya canlıdaki büyük bir `orders` tablosuna indeks eklemen gerekirse bir geliştirici olarak bunu nasıl ele alırsın?)*
+
+- **🎤 İngilizce Cevap:**
+  > *"First, I inspect the query using `EXPLAIN (ANALYZE, BUFFERS)` to see if PostgreSQL is doing a Sequential Scan (`Seq Scan`) on a large table or if row estimates are off. Second, I check if the query is SARGable—for example, making sure we don't wrap indexed columns in functions, or creating an expression/partial index if needed. Finally, when adding the new index in production, I always use `CREATE INDEX CONCURRENTLY` in our migration script so PostgreSQL builds the index in the background without locking live customer orders."*
+- *(🇹🇷 **Türkçe Özeti:** Önce `EXPLAIN (ANALYZE, BUFFERS)` ile sorgu planına bakar, büyük tabloda `Seq Scan` (tam tablo taraması) olup olmadığını kontrol ederim. Sorgunun indeksi bozacak bir fonksiyon içerip içermediğine bakarım. Canlıdaki büyük tabloya yeni indeks eklerken ise müşteri siparişlerini kilitlememek için migration içinde her zaman `CREATE INDEX CONCURRENTLY` kullanırım.)*
+
